@@ -1,8 +1,9 @@
 [build]
-builder = "dockerfile"
-dockerfilePath = "Dockerfile"
+# Use Nixpacks (auto-detect Python), not Dockerfile
+# builder = "dockerfile"
 
 [deploy]
+startCommand = "python seed.py; uvicorn app.main:app --host 0.0.0.0 --port $PORT"
 healthcheckPath = "/"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
