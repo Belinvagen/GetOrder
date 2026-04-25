@@ -112,7 +112,7 @@ def telegram_auth(auth_data: TelegramAuthData, db: Session = Depends(get_db)):
     and returns a JWT token.
     """
     # Verify Telegram data integrity
-    data_dict = auth_data.model_dump()
+    data_dict = auth_data.model_dump(exclude_none=True)
     if not verify_telegram_data(data_dict):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
