@@ -1,7 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // No "output: standalone" — Vercel uses its own build system
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "https://getorder-production.up.railway.app/api/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;
