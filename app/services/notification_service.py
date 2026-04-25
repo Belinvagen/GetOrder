@@ -76,7 +76,7 @@ async def notify_restaurant_about_order(order_id: int, db_session):
         return
 
     # Determine target chat
-    chat_id = restaurant.telegram_chat_id or settings.ADMIN_CHAT_ID
+    chat_id = restaurant.telegram_chat_id
     if not chat_id:
         logger.info(f"[NOTIFY] No chat configured for restaurant '{restaurant.name}', skipping")
         return
