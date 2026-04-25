@@ -1,0 +1,182 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: #0a0a0f;
+  --color-foreground: #e8e8f0;
+  --color-surface: #12121e;
+  --color-surface-hover: #1a1a2e;
+  --color-border: #2a2a3e;
+  --color-accent: #6c5ce7;
+  --color-accent-light: #a29bfe;
+  --color-accent-secondary: #0984e3;
+  --color-success: #00b894;
+  --color-warning: #fdcb6e;
+  --color-danger: #e17055;
+  --color-text-muted: #8888a8;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+/* ─── Base ────────────────────────────────────────────────────────────── */
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+}
+
+/* ─── Glassmorphism Card ──────────────────────────────────────────────── */
+
+.glass-card {
+  background: rgba(18, 18, 30, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(108, 92, 231, 0.15);
+  border-radius: 1rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  background: rgba(26, 26, 46, 0.85);
+  border-color: rgba(108, 92, 231, 0.35);
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 32px rgba(108, 92, 231, 0.12),
+    0 0 0 1px rgba(108, 92, 231, 0.08);
+}
+
+/* ─── Traffic Light Pulse ─────────────────────────────────────────────── */
+
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 184, 148, 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(0, 184, 148, 0); }
+}
+
+@keyframes pulse-yellow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(253, 203, 110, 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(253, 203, 110, 0); }
+}
+
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(225, 112, 85, 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(225, 112, 85, 0); }
+}
+
+.traffic-green {
+  background: #00b894;
+  animation: pulse-green 2s ease-in-out infinite;
+}
+
+.traffic-yellow {
+  background: #fdcb6e;
+  animation: pulse-yellow 2s ease-in-out infinite;
+}
+
+.traffic-red {
+  background: #e17055;
+  animation: pulse-red 2s ease-in-out infinite;
+}
+
+/* ─── Gradient Accent Button ──────────────────────────────────────────── */
+
+.btn-accent {
+  background: linear-gradient(135deg, #6c5ce7, #0984e3);
+  color: white;
+  border: none;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-accent:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(108, 92, 231, 0.35);
+}
+
+.btn-accent:active {
+  transform: translateY(0);
+}
+
+.btn-accent:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ─── Scrollbar ───────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(108, 92, 231, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(108, 92, 231, 0.5);
+}
+
+/* ─── Animations ──────────────────────────────────────────────────────── */
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(42, 42, 62, 0.5) 25%,
+    rgba(42, 42, 62, 0.8) 50%,
+    rgba(42, 42, 62, 0.5) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 0.5rem;
+}
+
+/* ─── Category Nav Scroll ─────────────────────────────────────────────── */
+
+.category-nav {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.category-nav::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─── Stop-list item ──────────────────────────────────────────────────── */
+
+.menu-item-stopped {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+  pointer-events: none;
+  position: relative;
+}
