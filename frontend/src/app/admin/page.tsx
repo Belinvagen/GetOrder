@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useAdminStore } from "@/store/adminStore";
 import {
+  adminLogin,
   fetchRestaurants,
   fetchRestaurantOrders,
   fetchMenu,
@@ -41,35 +41,42 @@ const statusLabels: Record<string, { label: string; emoji: string; color: string
   completed: { label: "Завершены", emoji: "📦", color: "text-text-muted", bg: "bg-surface", border: "border-border/30" },
 };
 
+// ─── Constants ───────────────────────────────────────────────────────────────
+const RESTAURANT_ID = 1;
+const ADMIN_USERNAME = "burger_admin";
+const ADMIN_PASSWORD = "admin123";
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
-  const router = useRouter();
-  const { token, isLoggedIn, restaurantId, logout } = useAdminStore();
+  const { token, isLoggedIn, restaurantId, login } = useAdminStore();
 
   const [activeTab, setActiveTab] = useState<"orders" | "menu" | "settings">("orders");
   const [currentRestaurant, setCurrentRestaurant] = useState<Restaurant | null>(null);
   const [orders, setOrders] = useState<OrderResponse[]>([]);
   const [menu, setMenu] = useState<FullMenu | null>(null);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState<number | null>(null); // order id being synced
+  const [syncing, setSyncing] = useState<number | null>(null);
 
-  // Auth guard
+  // Auto-login on mount (no manual login needed)
   useEffect(() => {
     if (!isLoggedIn) {
-      router.push("/admin/login");
+      adminLogin(ADMIN_USERNAME, ADMIN_PASSWORD)
+        .then((data) => login(data.access_token, data.restaurant_id))
+        .catch(console.error);
     }
-  }, [isLoggedIn, router]);
+  }, [isLoggedIn, login]);
 
-  // Load data for own restaurant
+  // Load data for restaurant
   const loadData = useCallback(async () => {
-    if (!restaurantId || !token) return;
+    const rid = restaurantId || RESTAURANT_ID;
+    if (!token) return;
     setLoading(true);
     try {
       const [ordersData, menuData, restData] = await Promise.all([
-        fetchRestaurantOrders(restaurantId, token),
-        fetchMenu(restaurantId),
-        fetchRestaurants().then((r) => r.find((x) => x.id === restaurantId) || null),
+        fetchRestaurantOrders(rid, token),
+        fetchMenu(rid),
+        fetchRestaurants().then((r) => r.find((x) => x.id === rid) || null),
       ]);
       setOrders(ordersData);
       setMenu(menuData);
@@ -82,22 +89,23 @@ export default function AdminDashboard() {
   }, [restaurantId, token]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (token) loadData();
+  }, [token, loadData]);
 
   // Auto-refresh orders every 10s
   useEffect(() => {
-    if (activeTab !== "orders" || !restaurantId || !token) return;
+    if (activeTab !== "orders" || !token) return;
+    const rid = restaurantId || RESTAURANT_ID;
     const interval = setInterval(async () => {
       try {
-        const fresh = await fetchRestaurantOrders(restaurantId, token);
+        const fresh = await fetchRestaurantOrders(rid, token);
         setOrders(fresh);
       } catch { /* ignore */ }
     }, 10000);
     return () => clearInterval(interval);
   }, [activeTab, restaurantId, token]);
 
-  if (!isLoggedIn || !token) return null;
+  if (!token) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="text-text-muted">Загрузка...</div></div>;
 
   // ─── Handlers ────────────────────────────────────────────────────────────
 
@@ -188,13 +196,6 @@ export default function AdminDashboard() {
                 className="text-xs text-accent-light hover:text-accent transition-colors"
               >
                 🔄
-              </button>
-
-              <button
-                onClick={() => { logout(); router.push("/admin/login"); }}
-                className="text-xs text-text-muted hover:text-danger transition-colors"
-              >
-                Выйти
               </button>
             </div>
           </div>

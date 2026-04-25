@@ -4,21 +4,17 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCartStore } from "@/store/cartStore";
-import { useAuthStore } from "@/store/authStore";
 
 export default function Navbar() {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
 
-  // Defer store reads until after hydration to prevent SSR mismatch
   useEffect(() => setMounted(true), []);
 
   const totalItems = useCartStore((s) => s.totalItems());
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const userName = useAuthStore((s) => s.user?.name);
 
   const links = [
-    { href: "/", label: "Рестораны", icon: "🍽️" },
+    { href: "/", label: "Меню", icon: "🍽️" },
     { href: "/orders", label: "Мои заказы", icon: "📋" },
     { href: "/admin", label: "Админ", icon: "🛠️" },
   ];
@@ -69,14 +65,6 @@ export default function Navbar() {
                 </span>
               )}
             </Link>
-
-            {/* User indicator */}
-            {mounted && isAuthenticated && (
-              <div className="ml-2 hidden items-center gap-1.5 rounded-lg bg-success/10 px-3 py-1.5 text-xs font-medium text-success sm:flex">
-                <span>👤</span>
-                <span>{userName}</span>
-              </div>
-            )}
           </div>
         </div>
       </div>
