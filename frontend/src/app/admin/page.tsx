@@ -24,6 +24,7 @@ import {
   type Restaurant,
   type OrderResponse,
   type FullMenu,
+  resetTelegramPairing,
 } from "@/lib/api";
 
 // ─── Status Config ───────────────────────────────────────────────────────────
@@ -1009,13 +1010,10 @@ function SettingsPanel({
                   onClick={async () => {
                     if (!confirm("Точно отвязать бота? Вы перестанете получать заказы.")) return;
                     try {
-                      await fetch(`${API_BASE}/superadmin/restaurants/${restaurant.id}/reset-telegram`, {
-                        method: "PATCH",
-                        headers: { Authorization: `Bearer ${token}` }
-                      });
+                      await resetTelegramPairing(restaurant.id, token);
                       onReload();
                     } catch (e) {
-                      alert("Ошибка отвязки. Доступно только суперадмину.");
+                      alert("Ошибка отвязки. " + (e instanceof Error ? e.message : ""));
                     }
                   }}
                   className="px-3 py-1.5 text-xs font-semibold text-danger bg-danger/10 hover:bg-danger/20 rounded-lg transition-all"
