@@ -50,7 +50,7 @@ async def cmd_start_deep_link(message: Message, command: CommandObject):
 
         if not restaurant:
             await message.answer(
-                "❌ Ресторан не найден.\n"
+                f"❌ Ресторан с ID {rest_id} не найден в базе данных.\n"
                 "Проверьте ссылку и попробуйте снова."
             )
             return
