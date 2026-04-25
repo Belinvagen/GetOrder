@@ -67,48 +67,42 @@ export default function AdminDashboard() {
     }
   }, [isLoggedIn, login]);
 
-  // Load public data (menu + restaurant) — no auth needed
-  const loadPublicData = useCallback(async () => {
+  // Load all data on mount + when token changes
+  const loadData = async () => {
     const rid = restaurantId || RESTAURANT_ID;
-    try {
-      const [menuData, restData] = await Promise.all([
-        fetchMenu(rid),
-        fetchRestaurants().then((r) => r.find((x) => x.id === rid) || null),
-      ]);
-      setMenu(menuData);
-      setCurrentRestaurant(restData);
-    } catch (e) {
-      console.error("Failed to load public data:", e);
-    }
-  }, [restaurantId]);
-
-  // Load orders (needs auth)
-  const loadOrders = useCallback(async () => {
-    const rid = restaurantId || RESTAURANT_ID;
-    if (!token) return;
-    try {
-      const ordersData = await fetchRestaurantOrders(rid, token!);
-      setOrders(ordersData);
-    } catch (e) {
-      console.error("Failed to load orders:", e);
-    }
-  }, [restaurantId, token]);
-
-  // Combined loader
-  const loadData = useCallback(async () => {
     setLoading(true);
-    await Promise.all([loadPublicData(), loadOrders()]);
+    
+    // Load public data (no auth needed)
+    try {
+      const menuData = await fetchMenu(rid);
+      setMenu(menuData);
+    } catch (e) {
+      console.error("Failed to load menu:", e);
+    }
+    
+    try {
+      const restList = await fetchRestaurants();
+      const rest = restList.find((x) => x.id === rid) || null;
+      setCurrentRestaurant(rest);
+    } catch (e) {
+      console.error("Failed to load restaurant:", e);
+    }
+    
+    // Load orders (needs auth)
+    if (token) {
+      try {
+        const ordersData = await fetchRestaurantOrders(rid, token);
+        setOrders(ordersData);
+      } catch (e) {
+        console.error("Failed to load orders:", e);
+      }
+    }
+    
     setLoading(false);
-  }, [loadPublicData, loadOrders]);
+  };
 
-  // Load public data immediately, orders when token arrives
-  useEffect(() => {
-    loadPublicData().finally(() => setLoading(false));
-  }, [loadPublicData]);
-
-  useEffect(() => {
-    if (token) loadOrders();
-  }, [token, loadOrders]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadData(); }, [token]);
 
   // Auto-refresh orders every 10s
   useEffect(() => {
