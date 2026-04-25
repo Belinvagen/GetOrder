@@ -424,3 +424,32 @@ export async function resetAccountPassword(adminId: number, token: string): Prom
   if (!res.ok) throw new Error("Ошибка сброса пароля");
   return res.json();
 }
+
+export async function resetTelegramPairing(restaurantId: number, token: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/superadmin/restaurants/${restaurantId}/reset-telegram`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Ошибка сброса привязки");
+}
+
+export async function telegramAuth(data: {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+  auth_date: number;
+  hash: string;
+}): Promise<{ access_token: string; user: User }> {
+  const res = await fetch(`${API_BASE}/auth/telegram`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || "Ошибка авторизации через Telegram");
+  }
+  return res.json();
+}

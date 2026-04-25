@@ -164,3 +164,20 @@ def reset_password(
     db.commit()
 
     return PasswordResetOut(new_password=new_password)
+
+
+@router.patch("/restaurants/{restaurant_id}/reset-telegram")
+def reset_telegram_pairing(
+    restaurant_id: int,
+    db: Session = Depends(get_db),
+    admin: Admin = Depends(require_superadmin),
+):
+    """Clear telegram_chat_id for a restaurant so it can be re-paired."""
+    restaurant = db.query(Restaurant).filter(Restaurant.id == restaurant_id).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Ресторан не найден")
+
+    restaurant.telegram_chat_id = None
+    db.commit()
+
+    return {"restaurant_id": restaurant_id, "telegram_chat_id": None, "message": "Привязка Telegram сброшена"}

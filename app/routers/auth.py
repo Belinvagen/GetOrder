@@ -130,6 +130,8 @@ def telegram_auth(auth_data: TelegramAuthData, db: Session = Depends(get_db)):
         user = User(
             tg_id=auth_data.id,
             name=full_name,
+            points=100,       # Welcome bonus
+            discount=5.0,     # Welcome discount
         )
         db.add(user)
         db.commit()

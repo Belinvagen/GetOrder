@@ -9,6 +9,7 @@ import {
   createSuperadminAccount,
   toggleAccountActive,
   resetAccountPassword,
+  resetTelegramPairing,
 } from "@/lib/api";
 
 type Tab = "accounts";
@@ -136,6 +137,16 @@ export default function SuperAdminPage() {
     try {
       const result = await resetAccountPassword(acc.admin_id, token);
       setResetResult({ username: acc.username, password: result.new_password });
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleResetTelegram = async (acc: AdminAccount) => {
+    if (!token || !acc.restaurant_id) return;
+    try {
+      await resetTelegramPairing(acc.restaurant_id, token);
+      loadAccounts();
     } catch {
       /* ignore */
     }
@@ -280,7 +291,15 @@ export default function SuperAdminPage() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          {acc.has_telegram ? "✅" : "—"}
+                          {acc.has_telegram ? (
+                            <button
+                              onClick={() => handleResetTelegram(acc)}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-success bg-success/10 px-2.5 py-1 rounded-full hover:bg-danger/10 hover:text-danger transition-all"
+                              title="Нажмите чтобы сбросить привязку"
+                            >
+                              ✅ Привязан
+                            </button>
+                          ) : "—"}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-2">
