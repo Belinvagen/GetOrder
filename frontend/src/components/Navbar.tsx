@@ -25,7 +25,7 @@ export default function Navbar() {
         <div className="flex h-14 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
-            <span className="text-2xl">🍔</span>
+            <img src="/logo.png" alt="GetOrder" className="h-8 w-8 object-contain" />
             <span className="text-lg font-bold text-accent-secondary">
               GetOrder
             </span>

@@ -12,9 +12,21 @@ from app.services.auth_service import hash_password
 
 
 def seed():
-    # Drop and recreate all tables to ensure schema is up to date
-    Base.metadata.drop_all(bind=engine)
+    # Create tables if they don't exist (preserves existing data)
     Base.metadata.create_all(bind=engine)
+    
+    # Migrate: add new columns if they don't exist
+    from sqlalchemy import text, inspect
+    with engine.connect() as conn:
+        inspector = inspect(engine)
+        if "orders" in inspector.get_table_names():
+            columns = [c["name"] for c in inspector.get_columns("orders")]
+            if "customer_name" not in columns:
+                conn.execute(text("ALTER TABLE orders ADD COLUMN customer_name VARCHAR(200) DEFAULT 'Гость'"))
+            if "customer_phone" not in columns:
+                conn.execute(text("ALTER TABLE orders ADD COLUMN customer_phone VARCHAR(30) DEFAULT ''"))
+            conn.commit()
+    
     db = SessionLocal()
 
     try:
