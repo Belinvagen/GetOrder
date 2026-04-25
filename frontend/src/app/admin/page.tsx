@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useAdminStore } from "@/store/adminStore";
 import {
   adminLogin,
-  fetchRestaurants,
+  fetchRestaurant,
   fetchRestaurantOrders,
   fetchMenu,
   updateOrderStatus,
@@ -81,9 +81,8 @@ export default function AdminDashboard() {
     }
     
     try {
-      const restList = await fetchRestaurants();
-      const rest = restList.find((x) => x.id === rid) || null;
-      setCurrentRestaurant(rest);
+      const restData = await fetchRestaurant(rid);
+      setCurrentRestaurant(restData);
     } catch (e) {
       console.error("Failed to load restaurant:", e);
     }
