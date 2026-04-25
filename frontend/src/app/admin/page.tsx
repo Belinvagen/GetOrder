@@ -809,7 +809,7 @@ function SettingsPanel({
   ];
 
   return (
-    <div className="max-w-lg space-y-8">
+    <div className="max-w-lg mx-auto space-y-8">
       {/* Restaurant info */}
       <div className="glass-card p-5 space-y-3">
         {editingInfo ? (

@@ -1,15 +1,5 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  skipTrailingSlashRedirect: true,
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: "https://getorder-production.up.railway.app/api/:path*",
-      },
-    ];
-  },
-};
+const nextConfig: NextConfig = {};
 
 export default nextConfig;
