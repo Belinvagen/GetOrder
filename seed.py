@@ -12,6 +12,8 @@ from app.services.auth_service import hash_password
 
 
 def seed():
+    # Drop and recreate all tables to ensure schema is up to date
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
 
