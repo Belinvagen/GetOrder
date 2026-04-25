@@ -1,18 +1,18 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-background: #0a0a0f;
-  --color-foreground: #e8e8f0;
-  --color-surface: #12121e;
-  --color-surface-hover: #1a1a2e;
-  --color-border: #2a2a3e;
-  --color-accent: #6c5ce7;
-  --color-accent-light: #a29bfe;
-  --color-accent-secondary: #0984e3;
-  --color-success: #00b894;
-  --color-warning: #fdcb6e;
-  --color-danger: #e17055;
-  --color-text-muted: #8888a8;
+  --color-background: #ffffff;
+  --color-foreground: #1a1a2e;
+  --color-surface: #f8faf9;
+  --color-surface-hover: #f0f5f2;
+  --color-border: #e0e8e4;
+  --color-accent: #22c55e;
+  --color-accent-light: #16a34a;
+  --color-accent-secondary: #10b981;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-text-muted: #6b7280;
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
 }
 
@@ -27,59 +27,60 @@ body {
 /* ─── Glassmorphism Card ──────────────────────────────────────────────── */
 
 .glass-card {
-  background: rgba(18, 18, 30, 0.7);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(108, 92, 231, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.15);
   border-radius: 1rem;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .glass-card:hover {
-  background: rgba(26, 26, 46, 0.85);
-  border-color: rgba(108, 92, 231, 0.35);
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(34, 197, 94, 0.35);
   transform: translateY(-2px);
   box-shadow:
-    0 8px 32px rgba(108, 92, 231, 0.12),
-    0 0 0 1px rgba(108, 92, 231, 0.08);
+    0 8px 32px rgba(34, 197, 94, 0.1),
+    0 0 0 1px rgba(34, 197, 94, 0.08);
 }
 
 /* ─── Traffic Light Pulse ─────────────────────────────────────────────── */
 
 @keyframes pulse-green {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 184, 148, 0.5); }
-  50% { box-shadow: 0 0 0 8px rgba(0, 184, 148, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
 }
 
 @keyframes pulse-yellow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(253, 203, 110, 0.5); }
-  50% { box-shadow: 0 0 0 8px rgba(253, 203, 110, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
 }
 
 @keyframes pulse-red {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(225, 112, 85, 0.5); }
-  50% { box-shadow: 0 0 0 8px rgba(225, 112, 85, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
 }
 
 .traffic-green {
-  background: #00b894;
+  background: #22c55e;
   animation: pulse-green 2s ease-in-out infinite;
 }
 
 .traffic-yellow {
-  background: #fdcb6e;
+  background: #f59e0b;
   animation: pulse-yellow 2s ease-in-out infinite;
 }
 
 .traffic-red {
-  background: #e17055;
+  background: #ef4444;
   animation: pulse-red 2s ease-in-out infinite;
 }
 
 /* ─── Gradient Accent Button ──────────────────────────────────────────── */
 
 .btn-accent {
-  background: linear-gradient(135deg, #6c5ce7, #0984e3);
+  background: linear-gradient(135deg, #22c55e, #10b981);
   color: white;
   border: none;
   border-radius: 0.75rem;
@@ -93,7 +94,7 @@ body {
 
 .btn-accent:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 24px rgba(108, 92, 231, 0.35);
+  box-shadow: 0 8px 24px rgba(34, 197, 94, 0.35);
 }
 
 .btn-accent:active {
@@ -119,12 +120,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(108, 92, 231, 0.3);
+  background: rgba(34, 197, 94, 0.3);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(108, 92, 231, 0.5);
+  background: rgba(34, 197, 94, 0.5);
 }
 
 /* ─── Animations ──────────────────────────────────────────────────────── */
@@ -152,9 +153,9 @@ body {
 .skeleton {
   background: linear-gradient(
     90deg,
-    rgba(42, 42, 62, 0.5) 25%,
-    rgba(42, 42, 62, 0.8) 50%,
-    rgba(42, 42, 62, 0.5) 75%
+    rgba(224, 232, 228, 0.5) 25%,
+    rgba(224, 232, 228, 0.8) 50%,
+    rgba(224, 232, 228, 0.5) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;

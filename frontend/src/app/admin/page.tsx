@@ -144,18 +144,19 @@ export default function AdminDashboard() {
   };
 
   const handleTrafficLight = async (color: Restaurant["traffic_light"]) => {
-    if (!restaurantId) return;
+    const rid = restaurantId || RESTAURANT_ID;
     try {
-      const updated = await updateTrafficLight(restaurantId, color, token);
+      const updated = await updateTrafficLight(rid, color, token);
       setCurrentRestaurant(updated);
     } catch { /* ignore */ }
   };
 
   const handlePosToggle = async () => {
-    if (!restaurantId || !currentRestaurant) return;
+    const rid = restaurantId || RESTAURANT_ID;
+    if (!currentRestaurant) return;
     try {
       const updated = await updateRestaurant(
-        restaurantId,
+        rid,
         { pos_mode: !currentRestaurant.pos_mode },
         token
       );
@@ -249,7 +250,7 @@ export default function AdminDashboard() {
               <MenuManager
                 menu={menu}
                 token={token}
-                restaurantId={restaurantId!}
+                restaurantId={restaurantId || RESTAURANT_ID}
                 onToggleActive={handleToggleActive}
                 onReload={loadData}
               />
