@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { telegramAuth } from "@/lib/api";
 
@@ -21,30 +21,43 @@ export default function TelegramLogin() {
   const widgetRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Force re-mount tracking for SPA navigations
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  const handleTelegramAuth = useCallback(async (tgUser: TelegramUser) => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await telegramAuth(tgUser);
+      login(response.user, response.access_token);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ошибка авторизации");
+    } finally {
+      setLoading(false);
+    }
+  }, [login]);
 
   useEffect(() => {
-    if (isAuthenticated || !widgetRef.current) return;
+    if (isAuthenticated || !mounted) return;
 
-    // Define the global callback for Telegram Widget
-    (window as any).onTelegramAuth = async (tgUser: TelegramUser) => {
-      setLoading(true);
-      setError("");
-      try {
-        const response = await telegramAuth(tgUser);
-        login(response.user, response.access_token);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Ошибка авторизации");
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Set global callback
+    (window as any).onTelegramAuth = handleTelegramAuth;
 
-    // Create the Telegram Login Widget script
+    // Inject widget script into container
     const container = widgetRef.current;
+    if (!container) return;
+
+    // Clear previous widget
     container.innerHTML = "";
 
+    // Use a unique timestamp to force re-creation
     const script = document.createElement("script");
-    script.src = "https://telegram.org/js/telegram-widget.js?22";
+    script.src = `https://telegram.org/js/telegram-widget.js?${Date.now()}`;
     script.setAttribute("data-telegram-login", BOT_USERNAME);
     script.setAttribute("data-size", "large");
     script.setAttribute("data-radius", "12");
@@ -56,7 +69,7 @@ export default function TelegramLogin() {
     return () => {
       delete (window as any).onTelegramAuth;
     };
-  }, [isAuthenticated, login]);
+  }, [isAuthenticated, mounted, handleTelegramAuth]);
 
   if (isAuthenticated && user) {
     return (
@@ -109,8 +122,8 @@ export default function TelegramLogin() {
         </div>
       )}
 
-      {/* Telegram Widget will be injected here */}
-      <div ref={widgetRef} className="flex justify-center" />
+      {/* Telegram Widget renders here */}
+      <div ref={widgetRef} className="flex justify-center min-h-[40px]" />
     </div>
   );
 }
