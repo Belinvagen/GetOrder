@@ -1053,6 +1053,7 @@ function SettingsPanel({
               </p>
             </>
           )}
+        </div>
       </div>
     </div>
   );
