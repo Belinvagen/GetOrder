@@ -26,16 +26,18 @@ export default function CheckoutPage() {
   const displayName = customerName || (isAuthenticated && user?.name ? user.name : "");
 
   const handleSubmit = async () => {
-    const name = displayName.trim();
-    const phone = customerPhone.trim();
+    const name = isAuthenticated && user ? user.name : customerName.trim();
+    const phone = isAuthenticated && user ? (user.phone || "Telegram") : customerPhone.trim();
 
-    if (!name) {
-      setError("Введите ваше имя");
-      return;
-    }
-    if (!phone || phone.length < 5) {
-      setError("Введите номер телефона");
-      return;
+    if (!isAuthenticated) {
+      if (!name) {
+        setError("Введите ваше имя");
+        return;
+      }
+      if (!phone || phone.length < 5) {
+        setError("Введите номер телефона");
+        return;
+      }
     }
     if (items.length === 0) return;
     if (!restaurantId) return;
@@ -140,35 +142,37 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      {/* Customer info — REQUIRED */}
-      <div className="glass-card p-4 space-y-4">
-        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-          👤 Контактные данные
-          <span className="text-xs text-danger font-normal">обязательно</span>
-        </h2>
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs text-text-muted block mb-1">Ваше имя</label>
-            <input
-              type="text"
-              value={customerName || (isAuthenticated && user?.name ? user.name : "")}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Иван"
-              className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-foreground placeholder:text-text-muted/50 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-text-muted block mb-1">Номер телефона</label>
-            <input
-              type="tel"
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
-              placeholder="+996 555 123 456"
-              className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-foreground placeholder:text-text-muted/50 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
-            />
+      {/* Customer info — REQUIRED if not authenticated */}
+      {!isAuthenticated && (
+        <div className="glass-card p-4 space-y-4">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            👤 Контактные данные
+            <span className="text-xs text-danger font-normal">обязательно</span>
+          </h2>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-text-muted block mb-1">Ваше имя</label>
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Иван"
+                className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-foreground placeholder:text-text-muted/50 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-text-muted block mb-1">Номер телефона</label>
+              <input
+                type="tel"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                placeholder="+996 555 123 456"
+                className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-foreground placeholder:text-text-muted/50 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
+              />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Order type toggle */}
       <OrderTypeToggle value={orderType} onChange={setOrderType} />
@@ -226,12 +230,12 @@ export default function CheckoutPage() {
         </span>
       </div>
 
-      {/* Telegram auth section — OPTIONAL */}
+      {/* Telegram auth section */}
       <div className="glass-card p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
             💬 Telegram
-            <span className="text-xs text-text-muted font-normal">необязательно</span>
+            {!isAuthenticated && <span className="text-xs text-text-muted font-normal">необязательно</span>}
           </h2>
           {isAuthenticated && (
             <span className="text-xs text-success font-medium flex items-center gap-1">
@@ -239,18 +243,12 @@ export default function CheckoutPage() {
             </span>
           )}
         </div>
-        {!isAuthenticated ? (
-          <>
-            <p className="text-xs text-text-muted">
-              Войдите через Telegram для бонусов и уведомлений о готовности
-            </p>
-            <TelegramLogin />
-          </>
-        ) : (
+        {!isAuthenticated && (
           <p className="text-xs text-text-muted">
-            👤 {user?.name} — вы получите уведомление когда заказ будет готов
+            Войдите через Telegram для бонусов и уведомлений о готовности
           </p>
         )}
+        <TelegramLogin />
       </div>
 
       {/* Error */}
