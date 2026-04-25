@@ -294,10 +294,10 @@ export default function SuperAdminPage() {
                           {acc.has_telegram ? (
                             <button
                               onClick={() => handleResetTelegram(acc)}
-                              className="inline-flex items-center gap-1 text-xs font-semibold text-success bg-success/10 px-2.5 py-1 rounded-full hover:bg-danger/10 hover:text-danger transition-all"
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-danger bg-danger/10 px-2.5 py-1 rounded-lg hover:bg-danger/20 transition-all"
                               title="Нажмите чтобы сбросить привязку"
                             >
-                              ✅ Привязан
+                              Отвязать
                             </button>
                           ) : "—"}
                         </td>
