@@ -98,8 +98,10 @@ export async function fetchMenu(restaurantId: number): Promise<FullMenu> {
 }
 
 export async function createOrder(payload: {
-  user_id: number;
+  user_id?: number;
   restaurant_id: number;
+  customer_name: string;
+  customer_phone: string;
   type: "takeout" | "dine_in";
   arrival_time?: string;
   items: OrderItem[];

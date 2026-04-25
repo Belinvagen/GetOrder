@@ -16,13 +16,25 @@ export default function CheckoutPage() {
 
   const [orderType, setOrderType] = useState<"takeout" | "dine_in">("takeout");
   const [arrivalMinutes, setArrivalMinutes] = useState(30);
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState<{ id: number; posMessage: string | null } | null>(null);
 
+  // Auto-fill name from TG if authenticated
+  const displayName = customerName || (isAuthenticated && user?.name ? user.name : "");
+
   const handleSubmit = async () => {
-    if (!isAuthenticated || !user) {
-      setError("Пожалуйста, войдите через Telegram");
+    const name = displayName.trim();
+    const phone = customerPhone.trim();
+
+    if (!name) {
+      setError("Введите ваше имя");
+      return;
+    }
+    if (!phone || phone.length < 5) {
+      setError("Введите номер телефона");
       return;
     }
     if (items.length === 0) return;
@@ -37,8 +49,10 @@ export default function CheckoutPage() {
       ).toISOString();
 
       const response = await createOrder({
-        user_id: user.id,
+        user_id: isAuthenticated && user ? user.id : undefined,
         restaurant_id: restaurantId,
+        customer_name: name,
+        customer_phone: phone,
         type: orderType,
         arrival_time: arrivalTime,
         items: items.map((i) => ({
@@ -49,7 +63,9 @@ export default function CheckoutPage() {
         })),
       });
 
-      addOrderId(response.id);
+      if (isAuthenticated) {
+        addOrderId(response.id);
+      }
       setSuccess({ id: response.id, posMessage: response.pos_message });
       clearCart();
     } catch (err) {
@@ -84,7 +100,7 @@ export default function CheckoutPage() {
             </button>
             <button
               onClick={() => router.push("/")}
-              className="rounded-xl border border-border/50 px-6 py-3 text-sm font-semibold text-text-muted hover:text-foreground hover:border-accent/30 transition-all"
+              className="rounded-xl border border-border px-6 py-3 text-sm font-semibold text-text-muted hover:text-foreground hover:border-accent/30 transition-all"
             >
               🏠 На главную
             </button>
@@ -100,12 +116,12 @@ export default function CheckoutPage() {
       <div className="mx-auto max-w-lg px-4 py-16 text-center space-y-4">
         <div className="text-6xl">🛒</div>
         <h1 className="text-2xl font-bold text-foreground">Корзина пуста</h1>
-        <p className="text-text-muted">Выберите блюда из меню ресторана</p>
+        <p className="text-text-muted">Выберите блюда из меню</p>
         <button
           onClick={() => router.push("/")}
           className="btn-accent rounded-xl px-6 py-3 mt-4"
         >
-          Перейти к ресторанам
+          Перейти к меню
         </button>
       </div>
     );
@@ -121,6 +137,36 @@ export default function CheckoutPage() {
         <div>
           <p className="font-semibold text-foreground">{restaurantName}</p>
           <p className="text-xs text-text-muted">Ваш заказ из этого ресторана</p>
+        </div>
+      </div>
+
+      {/* Customer info — REQUIRED */}
+      <div className="glass-card p-4 space-y-4">
+        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          👤 Контактные данные
+          <span className="text-xs text-danger font-normal">обязательно</span>
+        </h2>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-text-muted block mb-1">Ваше имя</label>
+            <input
+              type="text"
+              value={customerName || (isAuthenticated && user?.name ? user.name : "")}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder="Иван"
+              className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-foreground placeholder:text-text-muted/50 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-text-muted block mb-1">Номер телефона</label>
+            <input
+              type="tel"
+              value={customerPhone}
+              onChange={(e) => setCustomerPhone(e.target.value)}
+              placeholder="+996 555 123 456"
+              className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-foreground placeholder:text-text-muted/50 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
+            />
+          </div>
         </div>
       </div>
 
@@ -150,7 +196,7 @@ export default function CheckoutPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => updateQuantity(item.menuItemId, item.quantity - 1)}
-                className="h-8 w-8 rounded-lg bg-surface hover:bg-surface-hover border border-border/50 text-foreground flex items-center justify-center text-sm font-bold transition-all"
+                className="h-8 w-8 rounded-lg bg-surface hover:bg-surface-hover border border-border text-foreground flex items-center justify-center text-sm font-bold transition-all"
               >
                 −
               </button>
@@ -175,13 +221,37 @@ export default function CheckoutPage() {
       {/* Total */}
       <div className="glass-card p-4 flex items-center justify-between">
         <span className="text-lg font-bold text-foreground">Итого</span>
-        <span className="text-xl font-extrabold bg-gradient-to-r from-accent to-accent-secondary bg-clip-text text-transparent">
+        <span className="text-xl font-extrabold text-accent-secondary">
           {formatPrice(totalAmount())}
         </span>
       </div>
 
-      {/* Telegram auth section */}
-      <TelegramLogin />
+      {/* Telegram auth section — OPTIONAL */}
+      <div className="glass-card p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            💬 Telegram
+            <span className="text-xs text-text-muted font-normal">необязательно</span>
+          </h2>
+          {isAuthenticated && (
+            <span className="text-xs text-success font-medium flex items-center gap-1">
+              ✅ Привязан
+            </span>
+          )}
+        </div>
+        {!isAuthenticated ? (
+          <>
+            <p className="text-xs text-text-muted">
+              Войдите через Telegram для бонусов и уведомлений о готовности
+            </p>
+            <TelegramLogin />
+          </>
+        ) : (
+          <p className="text-xs text-text-muted">
+            👤 {user?.name} — вы получите уведомление когда заказ будет готов
+          </p>
+        )}
+      </div>
 
       {/* Error */}
       {error && (
@@ -193,7 +263,7 @@ export default function CheckoutPage() {
       {/* Submit */}
       <button
         onClick={handleSubmit}
-        disabled={submitting || !isAuthenticated}
+        disabled={submitting}
         className="btn-accent w-full rounded-xl py-4 text-lg font-bold disabled:opacity-40"
       >
         {submitting ? (

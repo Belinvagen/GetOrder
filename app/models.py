@@ -145,8 +145,10 @@ class Order(Base):
     __tablename__ = "orders"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Optional — can order without TG
     restaurant_id = Column(Integer, ForeignKey("restaurants.id"), nullable=False)
+    customer_name = Column(String(200), nullable=False)  # Always required
+    customer_phone = Column(String(30), nullable=False)   # Always required
     type = Column(Enum(OrderType), nullable=False, default=OrderType.takeout)
     arrival_time = Column(DateTime, nullable=True)
     status = Column(Enum(OrderStatus), nullable=False, default=OrderStatus.pending)

@@ -69,6 +69,8 @@ def create_order(db: Session, order_data: OrderCreate) -> tuple[Order, Optional[
     order = Order(
         user_id=order_data.user_id,
         restaurant_id=order_data.restaurant_id,
+        customer_name=order_data.customer_name,
+        customer_phone=order_data.customer_phone,
         type=order_data.type,
         arrival_time=order_data.arrival_time,
         status=OrderStatus.pending,

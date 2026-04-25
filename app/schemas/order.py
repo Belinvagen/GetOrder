@@ -19,8 +19,10 @@ class OrderItemSchema(BaseModel):
 
 
 class OrderCreate(BaseModel):
-    user_id: int
+    user_id: Optional[int] = None  # Optional — can order without TG auth
     restaurant_id: int
+    customer_name: str = Field(..., min_length=1, max_length=200)
+    customer_phone: str = Field(..., min_length=5, max_length=30)
     type: OrderType = OrderType.takeout
     arrival_time: Optional[datetime] = None
     items: List[OrderItemSchema] = Field(..., min_length=1)
@@ -32,8 +34,10 @@ class OrderStatusUpdate(BaseModel):
 
 class OrderResponse(BaseModel):
     id: int
-    user_id: int
+    user_id: Optional[int] = None
     restaurant_id: int
+    customer_name: str
+    customer_phone: str
     type: OrderType
     arrival_time: Optional[datetime] = None
     status: OrderStatus

@@ -108,6 +108,8 @@ async def notify_restaurant_about_order(order_id: int, db_session):
 
     text = (
         f"🔥 <b>Новый заказ #{order_id}!</b>\n\n"
+        f"👤 Клиент: <b>{order.customer_name}</b>\n"
+        f"📞 Телефон: <b>{order.customer_phone}</b>\n\n"
         f"🏪 {restaurant.name}\n"
         f"📦 {order_type}{arrival}\n\n"
         f"📝 Состав:\n{items_text}\n"
