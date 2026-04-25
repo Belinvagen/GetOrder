@@ -24,33 +24,48 @@ export async function DELETE(request: NextRequest) {
 
 async function proxyRequest(request: NextRequest) {
   const url = new URL(request.url);
-  const targetPath = url.pathname + url.search;
-  const targetUrl = `${BACKEND_URL}${targetPath}`;
+  // Ensure trailing slash for FastAPI compatibility
+  let targetPath = url.pathname;
+  if (!targetPath.endsWith("/")) {
+    targetPath += "/";
+  }
+  const targetUrl = `${BACKEND_URL}${targetPath}${url.search}`;
 
   const headers: Record<string, string> = {};
   request.headers.forEach((value, key) => {
-    if (!["host", "connection", "transfer-encoding"].includes(key.toLowerCase())) {
+    if (!["host", "connection", "transfer-encoding", "content-length"].includes(key.toLowerCase())) {
       headers[key] = value;
     }
   });
 
-  const body = ["GET", "HEAD"].includes(request.method) ? undefined : await request.text();
+  let body: string | undefined;
+  if (!["GET", "HEAD"].includes(request.method)) {
+    try {
+      body = await request.text();
+    } catch {
+      body = undefined;
+    }
+  }
 
   try {
     const res = await fetch(targetUrl, {
       method: request.method,
       headers,
       body,
+      redirect: "follow",
     });
 
-    const data = await res.text();
-    return new NextResponse(data, {
+    const responseBody = await res.arrayBuffer();
+    
+    const responseHeaders = new Headers();
+    responseHeaders.set("content-type", res.headers.get("content-type") || "application/json");
+    
+    return new NextResponse(responseBody, {
       status: res.status,
-      headers: {
-        "content-type": res.headers.get("content-type") || "application/json",
-      },
+      headers: responseHeaders,
     });
   } catch (error) {
+    console.error("Proxy error:", error);
     return NextResponse.json(
       { detail: "Backend unavailable" },
       { status: 502 }
