@@ -8,10 +8,19 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 from app.config import settings
 
+import os
+
 # For SQLite, we need connect_args to allow multi-threaded access
 connect_args = {}
 if settings.DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
+    
+    # Ensure the directory exists if it's a local file
+    if "///" in settings.DATABASE_URL:
+        db_path = settings.DATABASE_URL.split("///")[1]
+        db_dir = os.path.dirname(db_path)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
 
 engine = create_engine(
     settings.DATABASE_URL,
