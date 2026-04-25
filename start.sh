@@ -1,18 +1,18 @@
 #!/bin/bash
 set -e
 
-# Railway sets PORT env var — Next.js must listen on it
-export NEXT_PORT="${PORT:-3000}"
+echo "=== GetOrder Starting ==="
+echo "PORT=$PORT"
 
-# Run seed to initialize DB
-python seed.py 2>/dev/null || true
+# Run seed (may fail if no DB yet, that's ok)
+python seed.py 2>&1 || echo "Seed skipped"
 
-# Start FastAPI backend on internal port 8000 (not exposed publicly)
+# Start FastAPI backend on internal port 8000
+echo "Starting FastAPI on :8000..."
 uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-
-# Wait for backend to be ready
 sleep 2
 
-# Start Next.js standalone server on Railway's $PORT
-cd frontend-standalone/frontend
-PORT=$NEXT_PORT HOSTNAME=0.0.0.0 node ../server.js
+# Start Next.js on Railway's $PORT (defaults to 3000 locally)
+echo "Starting Next.js on :${PORT:-3000}..."
+cd frontend
+PORT=${PORT:-3000} HOSTNAME=0.0.0.0 node server.js

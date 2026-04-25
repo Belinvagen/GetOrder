@@ -25,10 +25,10 @@ COPY app/ ./app/
 COPY bot/ ./bot/
 COPY seed.py .
 
-# Copy built frontend
-COPY --from=frontend-builder /app/frontend/.next/standalone ./frontend-standalone/
-COPY --from=frontend-builder /app/frontend/.next/static ./frontend-standalone/frontend/.next/static
-COPY --from=frontend-builder /app/frontend/public ./frontend-standalone/frontend/public
+# Copy built frontend (standalone = server.js + minimal node_modules)
+COPY --from=frontend-builder /app/frontend/.next/standalone ./frontend/
+COPY --from=frontend-builder /app/frontend/.next/static ./frontend/.next/static
+COPY --from=frontend-builder /app/frontend/public ./frontend/public
 
 # Start script
 COPY start.sh .
