@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && \
 
 # Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt cloudinary
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend code
 COPY app/ ./app/
@@ -33,7 +33,5 @@ COPY --from=frontend-builder /app/frontend/public ./frontend-standalone/frontend
 # Start script
 COPY start.sh .
 RUN chmod +x start.sh
-
-EXPOSE 8000 3000
 
 CMD ["./start.sh"]
