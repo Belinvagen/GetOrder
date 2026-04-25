@@ -67,30 +67,48 @@ export default function AdminDashboard() {
     }
   }, [isLoggedIn, login]);
 
-  // Load data for restaurant
-  const loadData = useCallback(async () => {
+  // Load public data (menu + restaurant) — no auth needed
+  const loadPublicData = useCallback(async () => {
     const rid = restaurantId || RESTAURANT_ID;
-    if (!token) return;
-    setLoading(true);
     try {
-      const [ordersData, menuData, restData] = await Promise.all([
-        fetchRestaurantOrders(rid, token),
+      const [menuData, restData] = await Promise.all([
         fetchMenu(rid),
         fetchRestaurants().then((r) => r.find((x) => x.id === rid) || null),
       ]);
-      setOrders(ordersData);
       setMenu(menuData);
       setCurrentRestaurant(restData);
-    } catch {
-      // token might be expired
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.error("Failed to load public data:", e);
+    }
+  }, [restaurantId]);
+
+  // Load orders (needs auth)
+  const loadOrders = useCallback(async () => {
+    const rid = restaurantId || RESTAURANT_ID;
+    if (!token) return;
+    try {
+      const ordersData = await fetchRestaurantOrders(rid, token);
+      setOrders(ordersData);
+    } catch (e) {
+      console.error("Failed to load orders:", e);
     }
   }, [restaurantId, token]);
 
+  // Combined loader
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    await Promise.all([loadPublicData(), loadOrders()]);
+    setLoading(false);
+  }, [loadPublicData, loadOrders]);
+
+  // Load public data immediately, orders when token arrives
   useEffect(() => {
-    if (token) loadData();
-  }, [token, loadData]);
+    loadPublicData().finally(() => setLoading(false));
+  }, [loadPublicData]);
+
+  useEffect(() => {
+    if (token) loadOrders();
+  }, [token, loadOrders]);
 
   // Auto-refresh orders every 10s
   useEffect(() => {
@@ -104,8 +122,6 @@ export default function AdminDashboard() {
     }, 10000);
     return () => clearInterval(interval);
   }, [activeTab, restaurantId, token]);
-
-  if (!token) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="text-text-muted">Загрузка...</div></div>;
 
   // ─── Handlers ────────────────────────────────────────────────────────────
 

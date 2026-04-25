@@ -20,13 +20,13 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+    <nav className="sticky top-0 z-50 border-b border-border bg-surface shadow-sm">
       <div className="mx-auto max-w-5xl px-4">
-        <div className="flex h-16 items-center justify-between">
+        <div className="flex h-14 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
-            <span className="text-2xl">🚀</span>
-            <span className="text-xl font-bold bg-gradient-to-r from-accent to-accent-secondary bg-clip-text text-transparent">
+            <span className="text-2xl">🍔</span>
+            <span className="text-lg font-bold text-accent-secondary">
               GetOrder
             </span>
           </Link>
@@ -37,10 +37,10 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium border transition-all duration-200 ${
                   pathname === link.href
-                    ? "bg-accent/15 text-accent-light"
-                    : "text-text-muted hover:bg-surface-hover hover:text-foreground"
+                    ? "bg-accent/10 text-accent-secondary border-accent/30"
+                    : "text-text-muted hover:bg-surface-hover hover:text-foreground border-transparent"
                 }`}
               >
                 <span className="text-base">{link.icon}</span>
@@ -51,10 +51,10 @@ export default function Navbar() {
             {/* Cart */}
             <Link
               href="/checkout"
-              className={`relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
+              className={`relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium border transition-all duration-200 ${
                 pathname === "/checkout"
-                  ? "bg-accent/15 text-accent-light"
-                  : "text-text-muted hover:bg-surface-hover hover:text-foreground"
+                  ? "bg-accent/10 text-accent-secondary border-accent/30"
+                  : "text-text-muted hover:bg-surface-hover hover:text-foreground border-transparent"
               }`}
             >
               <span className="text-base">🛒</span>
