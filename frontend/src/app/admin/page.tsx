@@ -370,6 +370,25 @@ function OrdersKanban({
                       </span>
                     </div>
 
+                    {/* Customer info */}
+                    {(order.customer_name || order.customer_phone) && (
+                      <div className="text-[11px] text-text-muted space-y-0.5">
+                        {order.customer_name && <div>👤 {order.customer_name}</div>}
+                        {order.customer_phone && <div>📞 {order.customer_phone}</div>}
+                      </div>
+                    )}
+
+                    {/* Arrival time */}
+                    {order.arrival_time && (
+                      <div className="flex items-center gap-1.5 rounded-lg bg-accent/10 px-2.5 py-1.5 text-xs font-medium text-accent-light">
+                        ⏰ Прибытие: {new Date(order.arrival_time).toLocaleTimeString("ru-RU", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          timeZone: "Asia/Bishkek",
+                        })}
+                      </div>
+                    )}
+
                     {/* Items */}
                     <div className="space-y-1">
                       {items.map((item, i) => (

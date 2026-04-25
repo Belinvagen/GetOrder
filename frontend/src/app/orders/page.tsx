@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { fetchOrder, formatPrice, type OrderResponse } from "@/lib/api";
+import TelegramLogin from "@/components/TelegramLogin";
 
 const statusConfig: Record<string, { label: string; emoji: string; color: string; bg: string }> = {
   pending: { label: "Ожидает", emoji: "⏳", color: "text-warning", bg: "bg-warning/10" },
@@ -68,15 +69,12 @@ export default function OrdersPage() {
       </div>
 
       {!isAuthenticated && (
-        <div className="glass-card p-5 text-center space-y-3">
-          <span className="text-4xl block">🔐</span>
-          <p className="text-text-muted">Войдите через Telegram, чтобы видеть свои заказы</p>
-          <button
-            onClick={() => router.push("/checkout")}
-            className="btn-accent rounded-xl px-5 py-2.5 text-sm"
-          >
-            Войти
-          </button>
+        <div className="glass-card p-5 space-y-4">
+          <div className="text-center space-y-2">
+            <span className="text-4xl block">🔐</span>
+            <p className="text-text-muted">Войдите через Telegram, чтобы видеть свои заказы и получать бонусы</p>
+          </div>
+          <TelegramLogin />
         </div>
       )}
 
@@ -135,6 +133,17 @@ export default function OrdersPage() {
                     <span>{status.label}</span>
                   </div>
                 </div>
+
+                {/* Arrival time */}
+                {order.arrival_time && (
+                  <div className="flex items-center gap-1.5 rounded-lg bg-accent/10 px-2.5 py-1.5 text-xs font-medium text-accent-light">
+                    ⏰ Прибытие: {new Date(order.arrival_time).toLocaleTimeString("ru-RU", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      timeZone: "Asia/Bishkek",
+                    })}
+                  </div>
+                )}
 
                 {/* Items */}
                 <div className="space-y-1">
