@@ -974,65 +974,31 @@ function SettingsPanel({
       <div className="space-y-4">
         <h3 className="text-base font-bold text-foreground">🤖 Интеграция Telegram</h3>
         <div className="glass-card p-5 space-y-4">
-          {restaurant.telegram_chat_id ? (
-            /* Connected state */
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 rounded-xl bg-success/10 border border-success/20 p-4">
-                <span className="text-2xl">✅</span>
-                <div>
-                  <p className="font-semibold text-success">Telegram успешно подключён</p>
-                  <p className="text-xs text-text-muted mt-0.5">
-                    Заказы отправляются в привязанный чат
-                  </p>
-                </div>
-              </div>
-              <p className="text-xs text-text-muted">
-                Chat ID: <code className="bg-surface px-2 py-0.5 rounded text-foreground">{restaurant.telegram_chat_id}</code>
+          <div className="flex items-center gap-3 rounded-xl bg-success/10 border border-success/20 p-4">
+            <span className="text-2xl">✅</span>
+            <div>
+              <p className="font-semibold text-success">Уведомления активны</p>
+              <p className="text-xs text-text-muted mt-0.5">
+                Заказы приходят в бот @GetOrderProjectTGBot
               </p>
             </div>
-          ) : (
-            /* Not connected state */
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 rounded-xl bg-warning/10 border border-warning/20 p-4">
-                <span className="text-2xl">⚠️</span>
-                <div>
-                  <p className="font-semibold text-warning">Telegram не подключён</p>
-                  <p className="text-xs text-text-muted mt-0.5">
-                    Привяжите чат, чтобы получать заказы в Telegram
-                  </p>
-                </div>
-              </div>
+          </div>
 
-              {restaurant.tg_pairing_code && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between rounded-xl bg-surface p-4">
-                    <div className="space-y-1">
-                      <p className="text-xs text-text-muted">Код привязки</p>
-                      <p className="text-lg font-mono font-bold text-foreground tracking-widest">
-                        {restaurant.tg_pairing_code}
-                      </p>
-                    </div>
-                  </div>
+          <a
+            href={`https://t.me/GetOrderProjectTGBot?start=pair_${restaurant.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-3 w-full rounded-xl bg-[#2AABEE] hover:bg-[#229ED9] text-white font-semibold py-4 px-6 text-sm transition-all duration-200 hover:shadow-lg hover:shadow-[#2AABEE]/20"
+          >
+            <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+            </svg>
+            Привязать чат к Telegram
+          </a>
 
-                  <a
-                    href={`https://t.me/GetOrderProjectTGBot?start=pair_${restaurant.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-3 w-full rounded-xl bg-[#2AABEE] hover:bg-[#229ED9] text-white font-semibold py-4 px-6 text-sm transition-all duration-200 hover:shadow-lg hover:shadow-[#2AABEE]/20"
-                  >
-                    <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
-                    </svg>
-                    Подключить Telegram в 1 клик
-                  </a>
-
-                  <p className="text-[11px] text-text-muted text-center">
-                    Нажмите кнопку и отправьте /start боту — чат будет привязан автоматически
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+          <p className="text-[11px] text-text-muted text-center">
+            Нажмите кнопку → отправьте /start боту → чат привяжется автоматически
+          </p>
         </div>
       </div>
     </div>

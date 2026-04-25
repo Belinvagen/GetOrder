@@ -24,19 +24,16 @@ export async function DELETE(request: NextRequest) {
 
 async function proxyRequest(request: NextRequest) {
   const url = new URL(request.url);
-  // Ensure trailing slash for FastAPI compatibility
-  let targetPath = url.pathname;
-  if (!targetPath.endsWith("/")) {
-    targetPath += "/";
-  }
-  const targetUrl = `${BACKEND_URL}${targetPath}${url.search}`;
+  const targetUrl = `${BACKEND_URL}${url.pathname}${url.search}`;
 
-  const headers: Record<string, string> = {};
-  request.headers.forEach((value, key) => {
-    if (!["host", "connection", "transfer-encoding", "content-length"].includes(key.toLowerCase())) {
-      headers[key] = value;
-    }
-  });
+  const headers: Record<string, string> = {
+    "content-type": request.headers.get("content-type") || "application/json",
+  };
+  
+  const authHeader = request.headers.get("authorization");
+  if (authHeader) {
+    headers["authorization"] = authHeader;
+  }
 
   let body: string | undefined;
   if (!["GET", "HEAD"].includes(request.method)) {
@@ -48,21 +45,38 @@ async function proxyRequest(request: NextRequest) {
   }
 
   try {
-    const res = await fetch(targetUrl, {
+    // First try as-is
+    let res = await fetch(targetUrl, {
       method: request.method,
       headers,
       body,
-      redirect: "follow",
+      redirect: "manual", // Don't auto-follow redirects
     });
+
+    // If FastAPI redirects (307), follow it manually preserving method and body
+    if (res.status === 307 || res.status === 308) {
+      const location = res.headers.get("location");
+      if (location) {
+        const redirectUrl = location.startsWith("http")
+          ? location.replace("http://", "https://") // Force HTTPS
+          : `${BACKEND_URL}${location}`;
+        
+        res = await fetch(redirectUrl, {
+          method: request.method,
+          headers,
+          body,
+          redirect: "manual",
+        });
+      }
+    }
 
     const responseBody = await res.arrayBuffer();
     
-    const responseHeaders = new Headers();
-    responseHeaders.set("content-type", res.headers.get("content-type") || "application/json");
-    
     return new NextResponse(responseBody, {
       status: res.status,
-      headers: responseHeaders,
+      headers: {
+        "content-type": res.headers.get("content-type") || "application/json",
+      },
     });
   } catch (error) {
     console.error("Proxy error:", error);
