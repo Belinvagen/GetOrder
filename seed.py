@@ -30,6 +30,17 @@ def seed():
     db = SessionLocal()
 
     try:
+        # ── Superadmin ───────────────────────────────────────────
+        if not db.query(Admin).filter(Admin.is_superadmin == True).first():
+            superadmin = Admin(
+                username="root",
+                hashed_password=hash_password("root123"),
+                is_superadmin=True,
+                is_active=True,
+            )
+            db.add(superadmin)
+            print("[+] Superadmin 'root' created (password: root123)")
+
         # ── Test User ─────────────────────────────────────────
         if not db.query(User).first():
             user = User(tg_id=123456789, name="Тест Пользователь", phone="+996551234567")
