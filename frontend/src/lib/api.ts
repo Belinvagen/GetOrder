@@ -54,8 +54,10 @@ export interface OrderItem {
 
 export interface OrderResponse {
   id: number;
-  user_id: number;
+  user_id: number | null;
   restaurant_id: number;
+  customer_name: string;
+  customer_phone: string;
   type: "takeout" | "dine_in";
   arrival_time: string | null;
   status: "pending" | "cooking" | "ready" | "completed";
