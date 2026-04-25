@@ -104,7 +104,7 @@ def seed():
         # Print pairing codes
         for r in db.query(Restaurant).all():
             if r.tg_pairing_code:
-                print(f"  🔗 {r.name}: t.me/BOT?start=pair_{r.tg_pairing_code}")
+                print(f"  🔗 {r.name}: t.me/GetOrderProjectTGBot?start=pair_{r.tg_pairing_code}")
 
     except Exception as e:
         db.rollback()
