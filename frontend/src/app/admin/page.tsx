@@ -87,7 +87,7 @@ export default function AdminDashboard() {
     const rid = restaurantId || RESTAURANT_ID;
     if (!token) return;
     try {
-      const ordersData = await fetchRestaurantOrders(rid, token);
+      const ordersData = await fetchRestaurantOrders(rid, token!);
       setOrders(ordersData);
     } catch (e) {
       console.error("Failed to load orders:", e);
@@ -116,7 +116,7 @@ export default function AdminDashboard() {
     const rid = restaurantId || RESTAURANT_ID;
     const interval = setInterval(async () => {
       try {
-        const fresh = await fetchRestaurantOrders(rid, token);
+        const fresh = await fetchRestaurantOrders(rid, token!);
         setOrders(fresh);
       } catch { /* ignore */ }
     }, 10000);
@@ -134,7 +134,7 @@ export default function AdminDashboard() {
     }
 
     try {
-      await updateOrderStatus(orderId, newStatus, token);
+      await updateOrderStatus(orderId, newStatus, token!);
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
       );
@@ -143,7 +143,7 @@ export default function AdminDashboard() {
 
   const handleToggleActive = async (itemId: number, currentActive: boolean) => {
     try {
-      await toggleItemActive(itemId, !currentActive, token);
+      await toggleItemActive(itemId, !currentActive, token!);
       setMenu((prev) => {
         if (!prev) return prev;
         return {
@@ -162,7 +162,7 @@ export default function AdminDashboard() {
   const handleTrafficLight = async (color: Restaurant["traffic_light"]) => {
     const rid = restaurantId || RESTAURANT_ID;
     try {
-      const updated = await updateTrafficLight(rid, color, token);
+      const updated = await updateTrafficLight(rid, color, token!);
       setCurrentRestaurant(updated);
     } catch { /* ignore */ }
   };
@@ -174,7 +174,7 @@ export default function AdminDashboard() {
       const updated = await updateRestaurant(
         rid,
         { pos_mode: !currentRestaurant.pos_mode },
-        token
+        token!
       );
       setCurrentRestaurant(updated);
     } catch { /* ignore */ }
@@ -265,7 +265,7 @@ export default function AdminDashboard() {
             {activeTab === "menu" && menu && (
               <MenuManager
                 menu={menu}
-                token={token}
+                token={token!}
                 restaurantId={restaurantId || RESTAURANT_ID}
                 onToggleActive={handleToggleActive}
                 onReload={loadData}
@@ -274,7 +274,7 @@ export default function AdminDashboard() {
             {activeTab === "settings" && currentRestaurant && (
               <SettingsPanel
                 restaurant={currentRestaurant}
-                token={token}
+                token={token!}
                 onTrafficLight={handleTrafficLight}
                 onPosToggle={handlePosToggle}
                 onReload={loadData}
@@ -447,7 +447,7 @@ function MenuManager({
   const handleUploadItemImage = async (itemId: number, file: File) => {
     setUploadingItemImage(itemId);
     try {
-      await uploadMenuItemImage(itemId, file, token);
+      await uploadMenuItemImage(itemId, file, token!);
       onReload();
     } catch (e) {
       console.error(e);
@@ -459,7 +459,7 @@ function MenuManager({
     if (!newCatName.trim()) return;
     setAddingCategory(true);
     try {
-      await createCategory(restaurantId, { name: newCatName.trim(), sort_order: menu.categories.length }, token);
+      await createCategory(restaurantId, { name: newCatName.trim(), sort_order: menu.categories.length }, token!);
       setNewCatName("");
       setShowAddCategory(false);
       onReload();
@@ -470,7 +470,7 @@ function MenuManager({
   const handleSaveCategory = async (catId: number) => {
     if (!editCatName.trim()) return;
     try {
-      await updateCategory(catId, { name: editCatName.trim() }, token);
+      await updateCategory(catId, { name: editCatName.trim() }, token!);
       setEditingCat(null);
       onReload();
     } catch { /* ignore */ }
@@ -486,7 +486,7 @@ function MenuManager({
         name: newItemName.trim(),
         description: newItemDesc.trim() || undefined,
         price: priceNum,
-      }, token);
+      }, token!);
       setNewItemName(""); setNewItemDesc(""); setNewItemPrice("");
       setAddingItemToCat(null);
       onReload();
@@ -504,7 +504,7 @@ function MenuManager({
         name: editName.trim(),
         description: editDesc.trim() || undefined,
         price: priceNum,
-      }, token);
+      }, token!);
       setEditingItem(null);
       onReload();
     } catch { /* ignore */ }
@@ -515,9 +515,9 @@ function MenuManager({
     if (!confirmDelete) return;
     try {
       if (confirmDelete.type === "cat") {
-        await deleteCategory(confirmDelete.id, token);
+        await deleteCategory(confirmDelete.id, token!);
       } else {
-        await deleteMenuItem(confirmDelete.id, token);
+        await deleteMenuItem(confirmDelete.id, token!);
       }
       onReload();
     } catch { /* ignore */ }
@@ -767,7 +767,7 @@ function SettingsPanel({
         name: editName.trim(),
         description: editDesc.trim() || undefined,
         address: editAddr.trim() || undefined,
-      }, token);
+      }, token!);
       setEditingInfo(false);
       onReload();
     } catch (e) {
@@ -782,9 +782,9 @@ function SettingsPanel({
     setter(true);
     try {
       if (type === "logo") {
-        await uploadRestaurantLogo(restaurant.id, file, token);
+        await uploadRestaurantLogo(restaurant.id, file, token!);
       } else {
-        await uploadRestaurantCover(restaurant.id, file, token);
+        await uploadRestaurantCover(restaurant.id, file, token!);
       }
       onReload();
     } catch (e: unknown) {
