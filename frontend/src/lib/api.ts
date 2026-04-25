@@ -78,7 +78,7 @@ export interface User {
 // ─── API Functions ───────────────────────────────────────────────────────────
 
 export async function fetchRestaurants(): Promise<Restaurant[]> {
-  const res = await fetch(`${API_BASE}/restaurants/`, { cache: "no-store" });
+  const res = await fetch(`${API_BASE}/restaurants`, { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch restaurants");
   return res.json();
 }
@@ -106,7 +106,7 @@ export async function createOrder(payload: {
   arrival_time?: string;
   items: OrderItem[];
 }): Promise<OrderResponse> {
-  const res = await fetch(`${API_BASE}/orders/`, {
+  const res = await fetch(`${API_BASE}/orders`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

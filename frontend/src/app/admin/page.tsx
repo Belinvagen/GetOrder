@@ -214,7 +214,7 @@ export default function AdminDashboard() {
 
       {/* Tabs */}
       <div className="mx-auto max-w-6xl px-4 pt-4">
-        <div className="flex gap-1 border-b border-border/30 pb-px">
+        <div className="flex gap-1 justify-center border-b border-border/30 pb-px">
           {tabs.map((tab) => (
             <button
               key={tab.key}
@@ -903,27 +903,7 @@ function SettingsPanel({
             </label>
           </div>
 
-          {/* Cover */}
-          <div className="glass-card p-4 space-y-3">
-            <p className="text-sm font-semibold text-foreground">Обложка</p>
-            <div className="relative h-24 rounded-xl bg-surface flex items-center justify-center overflow-hidden">
-              {restaurant.cover_url ? (
-                <img src={restaurant.cover_url} alt="Обложка" className="h-full w-full object-cover rounded-xl" />
-              ) : (
-                <span className="text-3xl">🌄</span>
-              )}
-              {uploadingCover && (
-                <div className="absolute inset-0 flex items-center justify-center bg-background/70 rounded-xl">
-                  <div className="h-6 w-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
-            </div>
-            <label className="flex items-center justify-center gap-2 w-full rounded-lg bg-surface hover:bg-surface-hover text-text-muted hover:text-foreground py-2 text-xs cursor-pointer transition-all">
-              <span>📎 {restaurant.cover_url ? "Заменить" : "Загрузить"}</span>
-              <input type="file" accept="image/*" className="hidden" disabled={uploadingCover}
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload("cover", f); e.target.value = ""; }} />
-            </label>
-          </div>
+
         </div>
       </div>
 
