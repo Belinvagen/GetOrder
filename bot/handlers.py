@@ -25,30 +25,33 @@ WELCOME_DISCOUNT = 5.0  # 5%
 async def cmd_start_deep_link(message: Message, command: CommandObject):
     """
     Handle /start with deep link payload.
-    Expected format: /start pair_{6_char_code}
+    Format: /start pair_{restaurant_id}
+    Example: t.me/GetOrderProjectTGBot?start=pair_1
     """
     payload = command.args
     if not payload or not payload.startswith("pair_"):
         await _handle_registration(message)
         return
 
-    pairing_code = payload.replace("pair_", "", 1)
-    if not pairing_code:
+    rest_id_str = payload.replace("pair_", "", 1)
+    if not rest_id_str or not rest_id_str.isdigit():
         await message.answer("❌ Неверный код привязки.")
         return
+
+    rest_id = int(rest_id_str)
 
     db = SessionLocal()
     try:
         restaurant = (
             db.query(Restaurant)
-            .filter(Restaurant.tg_pairing_code == pairing_code)
+            .filter(Restaurant.id == rest_id)
             .first()
         )
 
         if not restaurant:
             await message.answer(
-                "❌ Ресторан с таким кодом привязки не найден.\n"
-                "Проверьте код и попробуйте снова."
+                "❌ Ресторан не найден.\n"
+                "Проверьте ссылку и попробуйте снова."
             )
             return
 

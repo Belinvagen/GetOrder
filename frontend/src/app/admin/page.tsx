@@ -1035,7 +1035,7 @@ function SettingsPanel({
                   </div>
 
                   <a
-                    href={`https://t.me/GetOrderProjectTGBot?start=pair_${restaurant.tg_pairing_code}`}
+                    href={`https://t.me/GetOrderProjectTGBot?start=pair_${restaurant.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-3 w-full rounded-xl bg-[#2AABEE] hover:bg-[#229ED9] text-white font-semibold py-4 px-6 text-sm transition-all duration-200 hover:shadow-lg hover:shadow-[#2AABEE]/20"
