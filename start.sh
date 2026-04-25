@@ -8,5 +8,6 @@ python seed.py 2>/dev/null || true
 uvicorn app.main:app --host 0.0.0.0 --port 8000 &
 
 # Start Next.js standalone server (foreground)
+# Use Railway's PORT variable for external traffic routing and healthchecks
 cd frontend-standalone/frontend
-PORT=3000 HOSTNAME=0.0.0.0 node ../server.js
+PORT=${PORT:-3000} HOSTNAME=0.0.0.0 node ../server.js
