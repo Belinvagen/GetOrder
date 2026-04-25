@@ -102,9 +102,9 @@ async def notify_restaurant_about_order(order_id: int, db_session):
             bishkek_tz = timezone(timedelta(hours=6))
             if isinstance(order.arrival_time, datetime):
                 local_time = order.arrival_time.astimezone(bishkek_tz)
-                arrival = f"\n⏰ Время прибытия: {local_time.strftime('%H:%M')}"
+                arrival = f"\n⏰ Время прибытия клиента: {local_time.strftime('%H:%M')}"
             else:
-                arrival = f"\n⏰ Время прибытия: {order.arrival_time}"
+                arrival = f"\n⏰ Время прибытия клиента: {order.arrival_time}"
         except Exception:
             pass
 
