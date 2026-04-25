@@ -210,9 +210,9 @@ export default function AdminDashboard() {
 
               <button
                 onClick={loadData}
-                className="text-xs text-accent-light hover:text-accent transition-colors"
+                className="flex items-center gap-1.5 text-sm font-medium text-accent-secondary hover:text-accent border border-border rounded-lg px-3 py-1.5 transition-colors"
               >
-                🔄
+                🔄 Обновить
               </button>
             </div>
           </div>
@@ -262,23 +262,39 @@ export default function AdminDashboard() {
                 posMode={currentRestaurant?.pos_mode || false}
               />
             )}
-            {activeTab === "menu" && menu && (
-              <MenuManager
-                menu={menu}
-                token={token!}
-                restaurantId={restaurantId || RESTAURANT_ID}
-                onToggleActive={handleToggleActive}
-                onReload={loadData}
-              />
+            {activeTab === "menu" && (
+              menu ? (
+                <MenuManager
+                  menu={menu}
+                  token={token!}
+                  restaurantId={restaurantId || RESTAURANT_ID}
+                  onToggleActive={handleToggleActive}
+                  onReload={loadData}
+                />
+              ) : (
+                <div className="text-center py-16 border border-border rounded-xl bg-surface">
+                  <span className="text-4xl block mb-3">🍽️</span>
+                  <p className="text-text-muted">Загрузка меню...</p>
+                  <button onClick={loadData} className="mt-3 text-sm text-accent-secondary hover:underline">Обновить</button>
+                </div>
+              )
             )}
-            {activeTab === "settings" && currentRestaurant && (
-              <SettingsPanel
-                restaurant={currentRestaurant}
-                token={token!}
-                onTrafficLight={handleTrafficLight}
-                onPosToggle={handlePosToggle}
-                onReload={loadData}
-              />
+            {activeTab === "settings" && (
+              currentRestaurant ? (
+                <SettingsPanel
+                  restaurant={currentRestaurant}
+                  token={token!}
+                  onTrafficLight={handleTrafficLight}
+                  onPosToggle={handlePosToggle}
+                  onReload={loadData}
+                />
+              ) : (
+                <div className="text-center py-16 border border-border rounded-xl bg-surface">
+                  <span className="text-4xl block mb-3">⚙️</span>
+                  <p className="text-text-muted">Загрузка настроек...</p>
+                  <button onClick={loadData} className="mt-3 text-sm text-accent-secondary hover:underline">Обновить</button>
+                </div>
+              )
             )}
           </>
         )}
