@@ -71,6 +71,15 @@ app.include_router(uploads.router)
 app.include_router(superadmin.router)
 
 
+@app.get("/api/populate-demo", tags=["Health"])
+def trigger_populate_demo():
+    try:
+        import populate_demo
+        populate_demo.main()
+        return {"status": "success", "message": "Demo data populated successfully!"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
 @app.get("/", tags=["Health"])
 def health_check():
     """Health check endpoint."""
