@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL = "https://getorder-production.up.railway.app";
+const BACKEND_URL = process.env.BACKEND_URL || "https://getorder-production.up.railway.app";
 
 export async function GET(request: NextRequest) {
   return proxyRequest(request);
