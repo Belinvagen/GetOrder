@@ -18,7 +18,9 @@ def main():
 
         print(f"Preparing demonstration data for restaurant: {restaurant.name} (ID: {restaurant.id})")
 
-        # 1. Update restaurant images
+        # 1. Update restaurant details and images
+        restaurant.name = "Lounge & Grill"
+        restaurant.description = "Авторская кухня премиум-класса. Лучшие стейки, итальянская пицца и фирменные десерты."
         restaurant.logo_url = "/img/logo_fusion_1777160555339.png"
         restaurant.cover_url = "/img/cover_fusion_1777160568634.png"
         
