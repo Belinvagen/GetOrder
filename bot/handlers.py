@@ -204,8 +204,7 @@ FAQ_RULES = [
         "answer": (
             "📋 <b>Отслеживание заказа</b>\n\n"
             "Я пришлю уведомление, когда заказ будет готов! ✅\n"
-            "Проверить статус: /myorders\n\n"
-            "Для редактирования: /editorder [номер]"
+            "Посмотреть заказ и оплатить можно через меню: /myorders"
         ),
     },
     {
@@ -213,7 +212,7 @@ FAQ_RULES = [
         "answer": (
             "❌ <b>Отмена заказа</b>\n\n"
             "Если до времени прибытия больше 30 минут,\n"
-            "вы можете изменить заказ: /editorder [номер]\n\n"
+            "вы можете изменить заказ через меню: /myorders\n\n"
             "Для полной отмены свяжитесь с рестораном."
         ),
     },
@@ -456,12 +455,10 @@ async def cmd_help(message: Message):
         f"1. Откройте <a href='{WEBAPP_URL}'>меню</a>\n"
         "2. Добавьте блюда в корзину\n"
         "3. Оформите заказ\n"
-        "4. Оплатите по QR: /pay [номер]\n\n"
+        "4. Следите за статусом и оплачивайте через бота\n\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
         "📱 <b>Команды:</b>\n"
-        "• /myorders — мои заказы\n"
-        "• /editorder [номер] — изменить заказ\n"
-        "• /pay [номер] — оплатить по QR\n"
+        "• /myorders — ваши заказы\n"
         "• /bonus — мои бонусы\n"
         "• /chatid — ID чата\n\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -485,15 +482,14 @@ async def cmd_myorders(message: Message):
             await message.answer("Вы ещё не зарегистрированы. Нажмите /start")
             return
 
-        orders = (
+        order = (
             db.query(Order)
             .filter(Order.user_id == user.id)
             .order_by(Order.created_at.desc())
-            .limit(5)
-            .all()
+            .first()
         )
 
-        if not orders:
+        if not order:
             await message.answer(
                 "📋 У вас пока нет заказов.\n\n"
                 f"🍽 <a href='{WEBAPP_URL}'>Открыть меню</a>",
@@ -508,26 +504,34 @@ async def cmd_myorders(message: Message):
             "completed": "📦 Завершён",
         }
 
-        text = "📋 <b>Ваши последние заказы:</b>\n\n"
-        for o in orders:
-            st = o.status.value if hasattr(o.status, 'value') else o.status
-            emoji = status_emoji.get(st, st)
-            text += f"<b>#{o.id}</b> — {emoji}\n"
+        st = order.status.value if hasattr(order.status, 'value') else order.status
+        emoji = status_emoji.get(st, st)
+        
+        text = f"📋 <b>Ваш последний заказ:</b>\n\n"
+        text += f"<b>#{order.id}</b> — {emoji}\n"
+        
+        # Show items
+        items = json.loads(order.items_json) if order.items_json else []
+        for item in items:
+            name = item.get("name", "?")
+            qty = item.get("quantity", 1)
+            text += f"  • {name} × {qty}\n"
             
-            # Show items
-            items = json.loads(o.items_json) if o.items_json else []
-            for item in items:
-                name = item.get("name", "?")
-                qty = item.get("quantity", 1)
-                text += f"  • {name} × {qty}\n"
-                
-            text += f"   💰 {_format_price(o.total_amount)}\n\n"
+        text += f"\n💰 <b>Итого: {_format_price(order.total_amount)}</b>"
 
-        text += "Для редактирования: /editorder [номер]\nДля оплаты: /pay [номер]"
-        await message.answer(text, parse_mode="HTML")
+        buttons = [
+            [InlineKeyboardButton(text="💳 Оплатить", callback_data=f"payqr:{order.id}")],
+            [InlineKeyboardButton(text="✏️ Изменить", callback_data=f"editstart:{order.id}")]
+        ]
+
+        await message.answer(
+            text, 
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
+        )
     except Exception as e:
         print(f"Error in cmd_myorders: {e}")
-        await message.answer(f"⚠️ Ошибка при загрузке заказов: {e}")
+        await message.answer(f"⚠️ Ошибка при загрузке заказа: {e}")
     finally:
         db.close()
 
@@ -793,15 +797,19 @@ async def _auto_link_orders(db, user, phone, message):
         count = len(unlinked)
         word = "заказ" if count == 1 else "заказа" if count < 5 else "заказов"
 
+        buttons = [
+            [InlineKeyboardButton(text="💳 Оплатить", callback_data=f"payqr:{latest.id}")],
+            [InlineKeyboardButton(text="✏️ Изменить", callback_data=f"editstart:{latest.id}")]
+        ]
+
         await message.answer(
             f"📦 <b>Нашёл {count} {word}!</b>\n\n"
             f"Последний — <b>заказ #{latest.id}</b>:\n"
             f"{items_text}"
-            f"💰 <b>Итого: {total:,.0f} сом</b>\n\n"
-            f"• /pay {latest.id} — оплатить\n"
-            f"• /editorder {latest.id} — изменить\n"
-            f"• Или напишите: «добавь маргариту» / «убери капучино» 💬",
+            f"\n💰 <b>Итого: {total:,.0f} сом</b>\n\n"
+            f"💬 Или напишите: «добавь маргариту» / «убери капучино»",
             parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons)
         )
     except Exception as e:
         print(f"Auto link error: {e}")
