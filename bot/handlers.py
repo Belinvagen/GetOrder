@@ -892,14 +892,19 @@ async def _handle_menu_query(message: Message, text_lower: str) -> bool:
         menu_items = db.query(MenuItem).filter(MenuItem.is_active == True).all()
         matched = None
         best_score = 0
+        generic_words = {"пицц", "стейк", "бургер", "салат", "закуск", "десерт", "напит"}
+        
         for mi in menu_items:
             name_lower = mi.name.lower()
             words = [w for w in name_lower.split() if len(w) >= 4]
             for w in words:
                 stem = w[:len(w)-1] if len(w) > 4 else w
-                if stem in text_lower and len(stem) > best_score:
-                    matched = mi
-                    best_score = len(stem)
+                if stem in text_lower:
+                    if stem in generic_words:
+                        continue  # Skip generic category words
+                    if len(stem) > best_score:
+                        matched = mi
+                        best_score = len(stem)
 
         if not matched:
             return False
@@ -947,6 +952,11 @@ async def faq_catchall(message: Message):
         if handled:
             return
 
+    # Dynamic menu item description
+    handled = await _handle_menu_query(message, text_lower)
+    if handled:
+        return
+
     # FAQ keyword matching
     for rule in FAQ_RULES:
         for kw in rule["keywords"]:
@@ -954,10 +964,5 @@ async def faq_catchall(message: Message):
                 await message.answer(rule["answer"], parse_mode="HTML",
                                      disable_web_page_preview=True)
                 return
-
-    # Dynamic menu item description
-    handled = await _handle_menu_query(message, text_lower)
-    if handled:
-        return
 
     await message.answer(DEFAULT_ANSWER, parse_mode="HTML")
