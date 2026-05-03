@@ -1,33 +1,178 @@
 """
-Telegram Bot command handlers: /start with registration flow,
-/help, /myorders, /bonus.
+Telegram Bot command handlers: /start, /help, /myorders, /bonus,
+/editorder, /pay, and smart FAQ catch-all.
 """
+
+import json
+from datetime import datetime, timezone, timedelta
 
 from aiogram import Router, F
 from aiogram.filters import CommandStart, Command, CommandObject
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from aiogram.types import (
+    Message, CallbackQuery,
+    ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove,
+    InlineKeyboardMarkup, InlineKeyboardButton,
+    FSInputFile,
+)
 
 from app.database import SessionLocal
-from app.models import Restaurant, User
+from app.models import Restaurant, User, Order, OrderStatus
 
 router = Router()
 
-WEBAPP_URL = "https://get-order-lemon.vercel.app"
-
-# Welcome bonus for new users
+WEBAPP_URL = "https://getorder-production.up.railway.app"
 WELCOME_POINTS = 100
-WELCOME_DISCOUNT = 5.0  # 5%
+WELCOME_DISCOUNT = 5.0
+BISHKEK_TZ = timezone(timedelta(hours=6))
+
+# ─── FAQ Knowledge Base ──────────────────────────────────────────────────────
+
+FAQ_RULES = [
+    {
+        "keywords": ["меню", "блюда", "что есть", "что можно", "ассортимент", "выбор"],
+        "answer": (
+            "🍽 <b>Наше меню</b>\n\n"
+            "У нас большой выбор блюд:\n"
+            "• 🥗 Закуски — от 420 сом\n"
+            "• 🍕 Пицца — от 680 сом\n"
+            "• 🥩 Горячие блюда — от 620 сом\n"
+            "• 🍰 Десерты — от 350 сом\n"
+            "• ☕ Напитки — от 220 сом\n\n"
+            f"👉 <a href='{WEBAPP_URL}'>Открыть полное меню</a>"
+        ),
+    },
+    {
+        "keywords": ["цена", "стоимость", "сколько стоит", "прайс", "дорого", "дешев"],
+        "answer": (
+            "💰 <b>Цены</b>\n\n"
+            "Цены указаны в меню рядом с каждым блюдом.\n"
+            "Средний чек: 600-1500 сом.\n"
+            "Стейк Рибай — наше премиальное блюдо: 3 200 сом.\n\n"
+            f"👉 <a href='{WEBAPP_URL}'>Посмотреть цены</a>"
+        ),
+    },
+    {
+        "keywords": ["время", "ждать", "сколько готов", "долго", "быстро", "когда"],
+        "answer": (
+            "🕐 <b>Время приготовления</b>\n\n"
+            "Среднее время: 15-30 минут.\n"
+            "При оформлении вы выбираете удобное время прибытия,\n"
+            "и мы приготовим всё к вашему приходу! ⏰"
+        ),
+    },
+    {
+        "keywords": ["доставк", "привез", "курьер"],
+        "answer": (
+            "🚗 <b>Доставка</b>\n\n"
+            "Пока мы работаем на самовынос и обслуживание в зале.\n"
+            "Оформите предзаказ онлайн — заберите без ожидания!\n"
+            "Доставка появится совсем скоро 🔜"
+        ),
+    },
+    {
+        "keywords": ["оплат", "оплатить", "карт", "нал", "каспи", "элсом", "mbank", "перевод"],
+        "answer": (
+            "💳 <b>Способы оплаты</b>\n\n"
+            "• 💵 Наличными при получении\n"
+            "• 💳 Банковской картой\n"
+            "• 📱 Через MBank (QR-код)\n\n"
+            "Используйте /pay <номер заказа> для оплаты по QR."
+        ),
+    },
+    {
+        "keywords": ["бонус", "скидк", "акци", "программа лояльности", "баллы"],
+        "answer": (
+            "🎁 <b>Бонусная программа</b>\n\n"
+            "• 100 приветственных баллов при регистрации\n"
+            "• 5% скидка на все заказы\n"
+            "• Баллы начисляются за каждый заказ\n\n"
+            "Проверьте свои бонусы: /bonus"
+        ),
+    },
+    {
+        "keywords": ["заказ", "статус", "где мой", "готов ли", "трек"],
+        "answer": (
+            "📋 <b>Отслеживание заказа</b>\n\n"
+            "Я пришлю уведомление, когда заказ будет готов! ✅\n"
+            "Проверить статус: /myorders\n\n"
+            "Для редактирования: /editorder <номер>"
+        ),
+    },
+    {
+        "keywords": ["отмен", "отказ", "не хочу", "верн"],
+        "answer": (
+            "❌ <b>Отмена заказа</b>\n\n"
+            "Если до времени прибытия больше 30 минут,\n"
+            "вы можете изменить заказ: /editorder <номер>\n\n"
+            "Для полной отмены свяжитесь с рестораном."
+        ),
+    },
+    {
+        "keywords": ["изменить", "редактировать", "поменять", "убрать", "добавить"],
+        "answer": (
+            "✏️ <b>Редактирование заказа</b>\n\n"
+            "Используйте команду:\n"
+            "/editorder <номер заказа>\n\n"
+            "Условие: до времени прибытия должно быть ≥ 30 минут."
+        ),
+    },
+    {
+        "keywords": ["привет", "здравствуй", "хай", "hello", "салам", "ку"],
+        "answer": (
+            "👋 <b>Привет!</b>\n\n"
+            "Я бот ресторана Fusion. Чем могу помочь?\n\n"
+            "🍽 Заказать еду — откройте меню\n"
+            "📋 Мои заказы — /myorders\n"
+            "💰 Бонусы — /bonus\n"
+            "❓ Помощь — /help"
+        ),
+    },
+    {
+        "keywords": ["спасиб", "благодар", "круто", "класс", "отлично", "супер"],
+        "answer": "😊 Рады помочь! Приятного аппетита! 🍽",
+    },
+    {
+        "keywords": ["адрес", "где вы", "локац", "находи", "как найти", "карт"],
+        "answer": (
+            "📍 <b>Как нас найти</b>\n\n"
+            "Ресторан Fusion\n"
+            "📍 г. Бишкек\n\n"
+            "Точный адрес уточняйте при оформлении заказа."
+        ),
+    },
+    {
+        "keywords": ["работа", "график", "часы", "открыт", "закрыт"],
+        "answer": (
+            "🕐 <b>Часы работы</b>\n\n"
+            "Пн-Чт: 10:00 — 23:00\n"
+            "Пт-Сб: 10:00 — 01:00\n"
+            "Вс: 11:00 — 22:00"
+        ),
+    },
+]
+
+DEFAULT_ANSWER = (
+    "🤔 Не совсем понял ваш вопрос.\n\n"
+    "Вот что я умею:\n"
+    "• 🍽 Рассказать про меню и цены\n"
+    "• 🕐 Время работы и приготовления\n"
+    "• 💳 Способы оплаты\n"
+    "• 📋 /myorders — ваши заказы\n"
+    "• ✏️ /editorder — изменить заказ\n"
+    "• 💳 /pay — оплатить по QR\n"
+    "• 💰 /bonus — ваши бонусы\n"
+    "• ❓ /help — полная справка"
+)
 
 
-# ─── /start ──────────────────────────────────────────────────────────────────
+def _format_price(tiyns: int) -> str:
+    return f"{tiyns / 100:,.0f} сом"
+
+
+# ─── /start deep link (restaurant pairing) ───────────────────────────────────
 
 @router.message(CommandStart(deep_link=True))
 async def cmd_start_deep_link(message: Message, command: CommandObject):
-    """
-    Handle /start with deep link payload.
-    Format: /start pair_{restaurant_id}
-    Example: t.me/GetOrderProjectTGBot?start=pair_1
-    """
     payload = command.args
     if not payload or not payload.startswith("pair_"):
         await _handle_registration(message)
@@ -39,68 +184,53 @@ async def cmd_start_deep_link(message: Message, command: CommandObject):
         return
 
     rest_id = int(rest_id_str)
-
     db = SessionLocal()
     try:
-        restaurant = (
-            db.query(Restaurant)
-            .filter(Restaurant.id == rest_id)
-            .first()
-        )
-
+        restaurant = db.query(Restaurant).filter(Restaurant.id == rest_id).first()
         if not restaurant:
-            await message.answer(
-                f"❌ Ресторан с ID {rest_id} не найден в базе данных.\n"
-                "Проверьте ссылку и попробуйте снова."
-            )
+            await message.answer(f"❌ Ресторан с ID {rest_id} не найден.")
             return
-
         restaurant.telegram_chat_id = message.chat.id
         db.commit()
-
         await message.answer(
             f"✅ <b>Чат успешно привязан!</b>\n\n"
             f"🏪 Ресторан: <b>{restaurant.name}</b>\n\n"
-            f"Теперь сюда будут приходить новые заказы.\n"
-            f"Нажимайте кнопки, чтобы принимать или отклонять их.",
+            f"Теперь сюда будут приходить новые заказы.",
             parse_mode="HTML",
         )
-
     except Exception as e:
         await message.answer(f"⚠️ Ошибка при привязке: {e}")
     finally:
         db.close()
 
 
+# ─── /start ──────────────────────────────────────────────────────────────────
+
 @router.message(CommandStart())
 async def cmd_start(message: Message):
-    """Welcome + auto-register."""
     await _handle_registration(message)
 
 
 async def _handle_registration(message: Message):
-    """Check if user exists, if not — register with welcome bonus."""
     tg_id = message.from_user.id
     tg_name = message.from_user.full_name or "Гость"
-
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.tg_id == tg_id).first()
-
         if user:
-            # Existing user
             await message.answer(
                 f"👋 <b>С возвращением, {user.name}!</b>\n\n"
-                f"💰 Ваши бонусы: <b>{user.points} баллов</b>\n"
+                f"💰 Бонусы: <b>{user.points} баллов</b>\n"
                 f"🏷 Скидка: <b>{user.discount:.0f}%</b>\n\n"
                 f"🍽 <a href='{WEBAPP_URL}'>Открыть меню</a>\n"
-                f"📋 <a href='{WEBAPP_URL}/orders'>Мои заказы</a>\n\n"
-                f"Отправьте /help для помощи",
+                f"📋 /myorders — мои заказы\n"
+                f"💰 /bonus — бонусы\n"
+                f"❓ /help — помощь\n\n"
+                f"Или просто напишите вопрос — я постараюсь помочь! 💬",
                 parse_mode="HTML",
                 disable_web_page_preview=True,
             )
         else:
-            # New user — ask for phone
             phone_keyboard = ReplyKeyboardMarkup(
                 keyboard=[
                     [KeyboardButton(text="📱 Поделиться номером", request_contact=True)],
@@ -109,33 +239,29 @@ async def _handle_registration(message: Message):
                 resize_keyboard=True,
                 one_time_keyboard=True,
             )
-
             await message.answer(
-                f"👋 <b>Добро пожаловать в GetOrder!</b>\n\n"
+                f"👋 <b>Добро пожаловать в Fusion!</b>\n\n"
                 f"Я помогу вам заказывать еду и следить за готовностью.\n\n"
                 f"🎁 <b>Подарок за регистрацию:</b>\n"
                 f"  • {WELCOME_POINTS} бонусных баллов\n"
                 f"  • Скидка {WELCOME_DISCOUNT:.0f}% на все заказы\n\n"
-                f"Чтобы завершить регистрацию, поделитесь номером телефона 👇",
+                f"Поделитесь номером телефона для завершения 👇",
                 parse_mode="HTML",
                 reply_markup=phone_keyboard,
             )
-
     except Exception as e:
         await message.answer(f"⚠️ Ошибка: {e}")
     finally:
         db.close()
 
 
-# ─── Phone contact handler ────────────────────────────────────────────────────
+# ─── Phone contact / skip ─────────────────────────────────────────────────────
 
 @router.message(F.contact)
 async def handle_contact(message: Message):
-    """User shared their phone number — complete registration."""
     tg_id = message.from_user.id
     tg_name = message.from_user.full_name or "Гость"
     phone = message.contact.phone_number
-
     db = SessionLocal()
     try:
         existing = db.query(User).filter(User.tg_id == tg_id).first()
@@ -145,46 +271,33 @@ async def handle_contact(message: Message):
             db.commit()
             await message.answer(
                 f"✅ Номер обновлён: <b>{phone}</b>",
-                parse_mode="HTML",
-                reply_markup=ReplyKeyboardRemove(),
+                parse_mode="HTML", reply_markup=ReplyKeyboardRemove(),
             )
             return
-
-        user = User(
-            tg_id=tg_id,
-            name=tg_name,
-            phone=phone,
-            points=WELCOME_POINTS,
-            discount=WELCOME_DISCOUNT,
-        )
+        user = User(tg_id=tg_id, name=tg_name, phone=phone,
+                     points=WELCOME_POINTS, discount=WELCOME_DISCOUNT)
         db.add(user)
         db.commit()
-
         await message.answer(
             f"🎉 <b>Регистрация завершена!</b>\n\n"
-            f"👤 Имя: <b>{tg_name}</b>\n"
-            f"📞 Телефон: <b>{phone}</b>\n"
-            f"💰 Бонусы: <b>{WELCOME_POINTS} баллов</b>\n"
-            f"🏷 Скидка: <b>{WELCOME_DISCOUNT:.0f}%</b>\n\n"
-            f"🍽 <a href='{WEBAPP_URL}'>Заказать еду</a>",
-            parse_mode="HTML",
-            reply_markup=ReplyKeyboardRemove(),
+            f"👤 {tg_name}\n📞 {phone}\n"
+            f"💰 {WELCOME_POINTS} баллов | 🏷 {WELCOME_DISCOUNT:.0f}%\n\n"
+            f"🍽 <a href='{WEBAPP_URL}'>Заказать еду</a>\n"
+            f"Или напишите любой вопрос — я помогу! 💬",
+            parse_mode="HTML", reply_markup=ReplyKeyboardRemove(),
             disable_web_page_preview=True,
         )
-
     except Exception as e:
         db.rollback()
-        await message.answer(f"⚠️ Ошибка регистрации: {e}", reply_markup=ReplyKeyboardRemove())
+        await message.answer(f"⚠️ Ошибка: {e}", reply_markup=ReplyKeyboardRemove())
     finally:
         db.close()
 
 
 @router.message(F.text == "❌ Пропустить")
 async def skip_phone(message: Message):
-    """User skips phone sharing — register without phone."""
     tg_id = message.from_user.id
     tg_name = message.from_user.full_name or "Гость"
-
     db = SessionLocal()
     try:
         existing = db.query(User).filter(User.tg_id == tg_id).first()
@@ -192,34 +305,21 @@ async def skip_phone(message: Message):
             await message.answer(
                 f"Вы уже зарегистрированы! 👋\n"
                 f"🍽 <a href='{WEBAPP_URL}'>Открыть меню</a>",
-                parse_mode="HTML",
-                reply_markup=ReplyKeyboardRemove(),
+                parse_mode="HTML", reply_markup=ReplyKeyboardRemove(),
                 disable_web_page_preview=True,
             )
             return
-
-        user = User(
-            tg_id=tg_id,
-            name=tg_name,
-            phone=None,
-            points=WELCOME_POINTS,
-            discount=WELCOME_DISCOUNT,
-        )
+        user = User(tg_id=tg_id, name=tg_name, phone=None,
+                     points=WELCOME_POINTS, discount=WELCOME_DISCOUNT)
         db.add(user)
         db.commit()
-
         await message.answer(
             f"✅ <b>Регистрация завершена!</b>\n\n"
-            f"👤 Имя: <b>{tg_name}</b>\n"
-            f"💰 Бонусы: <b>{WELCOME_POINTS} баллов</b>\n"
-            f"🏷 Скидка: <b>{WELCOME_DISCOUNT:.0f}%</b>\n\n"
-            f"💡 Вы можете поделиться номером позже через /start\n\n"
+            f"👤 {tg_name}\n💰 {WELCOME_POINTS} баллов | 🏷 {WELCOME_DISCOUNT:.0f}%\n\n"
             f"🍽 <a href='{WEBAPP_URL}'>Заказать еду</a>",
-            parse_mode="HTML",
-            reply_markup=ReplyKeyboardRemove(),
+            parse_mode="HTML", reply_markup=ReplyKeyboardRemove(),
             disable_web_page_preview=True,
         )
-
     except Exception as e:
         db.rollback()
         await message.answer(f"⚠️ Ошибка: {e}", reply_markup=ReplyKeyboardRemove())
@@ -231,29 +331,25 @@ async def skip_phone(message: Message):
 
 @router.message(Command("help"))
 async def cmd_help(message: Message):
-    """FAQ."""
     await message.answer(
-        "❓ <b>Частые вопросы (FAQ)</b>\n\n"
+        "❓ <b>Справка по боту Fusion</b>\n\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
-        "🕐 <b>Сколько ждать заказ?</b>\n"
-        "Среднее время — 15-30 мин. "
-        "Выберите удобное время при оформлении.\n\n"
-        "━━━━━━━━━━━━━━━━━━━━\n\n"
-        "📱 <b>Как сделать заказ?</b>\n"
-        "1. Откройте меню\n"
+        "🍽 <b>Как заказать?</b>\n"
+        f"1. Откройте <a href='{WEBAPP_URL}'>меню</a>\n"
         "2. Добавьте блюда в корзину\n"
-        "3. Укажите имя и телефон\n"
-        "4. Оформите заказ!\n\n"
+        "3. Оформите заказ\n"
+        "4. Оплатите по QR: /pay <номер>\n\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
-        "🥡 <b>С собой или в зале?</b>\n"
-        "Выбирайте при оформлении. Цены одинаковые.\n\n"
+        "📱 <b>Команды:</b>\n"
+        "• /myorders — мои заказы\n"
+        "• /editorder <номер> — изменить заказ\n"
+        "• /pay <номер> — оплатить по QR\n"
+        "• /bonus — мои бонусы\n"
+        "• /chatid — ID чата\n\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
-        "💰 <b>Оплата</b>\n"
-        "При получении — наличными или картой.\n\n"
-        "━━━━━━━━━━━━━━━━━━━━\n\n"
-        "🔔 <b>Уведомления</b>\n"
-        "Я пришлю сообщение, когда ваш заказ будет готов!\n\n"
-        f"🍽 <a href='{WEBAPP_URL}'>Открыть меню</a>",
+        "💬 <b>Умный помощник</b>\n"
+        "Просто напишите вопрос — я постараюсь ответить!\n"
+        "Например: «сколько стоит пицца?»",
         parse_mode="HTML",
         disable_web_page_preview=True,
     )
@@ -263,32 +359,63 @@ async def cmd_help(message: Message):
 
 @router.message(Command("myorders"))
 async def cmd_myorders(message: Message):
-    """Check orders link."""
-    await message.answer(
-        "📋 <b>Мои заказы</b>\n\n"
-        f"Отслеживайте свои заказы:\n"
-        f"🌐 <a href='{WEBAPP_URL}/orders'>Открыть мои заказы</a>\n\n"
-        "Я также пришлю уведомление, когда заказ будет готов! ✅",
-        parse_mode="HTML",
-        disable_web_page_preview=True,
-    )
+    tg_id = message.from_user.id
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.tg_id == tg_id).first()
+        if not user:
+            await message.answer("Вы ещё не зарегистрированы. Нажмите /start")
+            return
+
+        orders = (
+            db.query(Order)
+            .filter(Order.user_id == user.id)
+            .order_by(Order.created_at.desc())
+            .limit(5)
+            .all()
+        )
+
+        if not orders:
+            await message.answer(
+                "📋 У вас пока нет заказов.\n\n"
+                f"🍽 <a href='{WEBAPP_URL}'>Открыть меню</a>",
+                parse_mode="HTML", disable_web_page_preview=True,
+            )
+            return
+
+        status_emoji = {
+            "pending": "🟡 Ожидает",
+            "cooking": "🍳 Готовится",
+            "ready": "✅ Готов",
+            "completed": "📦 Завершён",
+        }
+
+        text = "📋 <b>Ваши последние заказы:</b>\n\n"
+        for o in orders:
+            st = o.status.value if hasattr(o.status, 'value') else o.status
+            emoji = status_emoji.get(st, st)
+            text += (
+                f"<b>#{o.id}</b> — {emoji}\n"
+                f"   💰 {_format_price(o.total_amount)}\n\n"
+            )
+
+        text += "Для редактирования: /editorder <номер>\nДля оплаты: /pay <номер>"
+        await message.answer(text, parse_mode="HTML")
+    finally:
+        db.close()
 
 
 # ─── /bonus ──────────────────────────────────────────────────────────────────
 
 @router.message(Command("bonus"))
 async def cmd_bonus(message: Message):
-    """Show user's bonus info."""
     tg_id = message.from_user.id
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.tg_id == tg_id).first()
         if not user:
-            await message.answer(
-                "Вы ещё не зарегистрированы. Нажмите /start для регистрации."
-            )
+            await message.answer("Вы ещё не зарегистрированы. Нажмите /start")
             return
-
         await message.answer(
             f"💰 <b>Ваши бонусы</b>\n\n"
             f"👤 {user.name}\n"
@@ -301,12 +428,163 @@ async def cmd_bonus(message: Message):
         db.close()
 
 
+# ─── /editorder ──────────────────────────────────────────────────────────────
+
+@router.message(Command("editorder"))
+async def cmd_editorder(message: Message, command: CommandObject):
+    if not command.args or not command.args.strip().isdigit():
+        await message.answer("Используйте: /editorder <номер заказа>\nПример: /editorder 5")
+        return
+
+    order_id = int(command.args.strip())
+    tg_id = message.from_user.id
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.tg_id == tg_id).first()
+        if not user:
+            await message.answer("Вы не зарегистрированы. Нажмите /start")
+            return
+
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if not order:
+            await message.answer(f"❌ Заказ #{order_id} не найден.")
+            return
+        if order.user_id != user.id:
+            await message.answer("❌ Это не ваш заказ.")
+            return
+
+        st = order.status.value if hasattr(order.status, 'value') else order.status
+        if st not in ("pending", "cooking"):
+            await message.answer(f"❌ Заказ #{order_id} уже завершён и не может быть изменён.")
+            return
+
+        # Check 30-min window
+        if order.arrival_time:
+            now = datetime.now(timezone.utc)
+            arrival = order.arrival_time
+            if arrival.tzinfo is None:
+                arrival = arrival.replace(tzinfo=timezone.utc)
+            diff = (arrival - now).total_seconds()
+            if diff < 30 * 60:
+                mins_left = max(0, int(diff // 60))
+                await message.answer(
+                    f"⏳ Изменить заказ уже нельзя.\n"
+                    f"До прибытия осталось {mins_left} мин (нужно ≥ 30).\n\n"
+                    f"Свяжитесь с рестораном напрямую."
+                )
+                return
+
+        # Show order with edit buttons
+        items = json.loads(order.items_json) if order.items_json else []
+        text = f"✏️ <b>Редактирование заказа #{order_id}</b>\n\n"
+        buttons = []
+        for i, item in enumerate(items):
+            name = item.get("name", "?")
+            qty = item.get("quantity", 1)
+            price = item.get("subtotal", item.get("price", 0) * qty)
+            text += f"{i+1}. {name} × {qty} — {_format_price(price)}\n"
+            buttons.append([
+                InlineKeyboardButton(
+                    text=f"❌ {name}",
+                    callback_data=f"edrm:{order_id}:{i}"
+                )
+            ])
+
+        text += f"\n💰 <b>Итого: {_format_price(order.total_amount)}</b>"
+
+        buttons.append([
+            InlineKeyboardButton(text="⏰ Время прибытия", callback_data=f"edtime:{order_id}"),
+            InlineKeyboardButton(text="✖️ Закрыть", callback_data=f"edclose:{order_id}"),
+        ])
+
+        await message.answer(
+            text, parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
+        )
+    finally:
+        db.close()
+
+
+# ─── /pay ────────────────────────────────────────────────────────────────────
+
+@router.message(Command("pay"))
+async def cmd_pay(message: Message, command: CommandObject):
+    if not command.args or not command.args.strip().isdigit():
+        await message.answer("Используйте: /pay <номер заказа>\nПример: /pay 5")
+        return
+
+    order_id = int(command.args.strip())
+    tg_id = message.from_user.id
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.tg_id == tg_id).first()
+        if not user:
+            await message.answer("Вы не зарегистрированы. Нажмите /start")
+            return
+
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if not order:
+            await message.answer(f"❌ Заказ #{order_id} не найден.")
+            return
+        if order.user_id != user.id:
+            await message.answer("❌ Это не ваш заказ.")
+            return
+
+        total_som = order.total_amount / 100
+
+        import os
+        qr_path = os.path.join(os.path.dirname(__file__), "payment_qr.png")
+
+        caption = (
+            f"💳 <b>Оплата заказа #{order_id}</b>\n\n"
+            f"💰 Сумма: <b>{total_som:,.0f} сом</b>\n\n"
+            f"📱 Отсканируйте QR-код в приложении MBank\n"
+            f"и переведите указанную сумму.\n\n"
+            f"После оплаты нажмите кнопку ниже 👇"
+        )
+
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text="✅ Я оплатил",
+                callback_data=f"paid:{order_id}"
+            )],
+        ])
+
+        photo = FSInputFile(qr_path)
+        await message.answer_photo(
+            photo=photo,
+            caption=caption,
+            parse_mode="HTML",
+            reply_markup=keyboard,
+        )
+    except Exception as e:
+        await message.answer(f"⚠️ Ошибка: {e}")
+    finally:
+        db.close()
+
+
 # ─── /chatid ─────────────────────────────────────────────────────────────────
 
 @router.message(Command("chatid"))
 async def cmd_chatid(message: Message):
-    """Show chat ID for debugging."""
     await message.answer(
         f"🆔 <b>Ваш Chat ID:</b> <code>{message.chat.id}</code>",
         parse_mode="HTML",
     )
+
+
+# ─── FAQ catch-all (must be last!) ───────────────────────────────────────────
+
+@router.message(F.text)
+async def faq_catchall(message: Message):
+    """Smart FAQ — match keywords in user's message."""
+    text_lower = message.text.lower()
+
+    for rule in FAQ_RULES:
+        for kw in rule["keywords"]:
+            if kw in text_lower:
+                await message.answer(rule["answer"], parse_mode="HTML",
+                                     disable_web_page_preview=True)
+                return
+
+    await message.answer(DEFAULT_ANSWER, parse_mode="HTML")

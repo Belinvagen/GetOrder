@@ -6,6 +6,7 @@ Calls the Telegram Bot API directly via httpx (no aiogram needed in FastAPI proc
 
 import json
 import logging
+import os
 import httpx
 from app.config import settings
 
@@ -40,6 +41,38 @@ async def send_message(chat_id: int, text: str, reply_markup: dict | None = None
         return False
 
 
+async def send_photo(chat_id: int, photo_path: str, caption: str, reply_markup: dict | None = None) -> bool:
+    """Send a photo via Telegram Bot API."""
+    if not settings.TELEGRAM_BOT_TOKEN:
+        logger.warning(f"[BOT] Token not set. Would send photo to {chat_id}")
+        return False
+
+    try:
+        async with httpx.AsyncClient() as client:
+            data = {
+                "chat_id": str(chat_id),
+                "caption": caption,
+                "parse_mode": "HTML",
+            }
+            if reply_markup:
+                data["reply_markup"] = json.dumps(reply_markup)
+
+            with open(photo_path, "rb") as f:
+                files = {"photo": ("payment_qr.png", f, "image/png")}
+                resp = await client.post(
+                    f"{TELEGRAM_API}/sendPhoto",
+                    data=data,
+                    files=files,
+                )
+            if resp.status_code == 200:
+                return True
+            logger.error(f"[BOT] Telegram sendPhoto error: {resp.status_code} {resp.text}")
+            return False
+    except Exception as e:
+        logger.error(f"[BOT] Failed to send photo: {e}")
+        return False
+
+
 async def notify_order_ready(user_tg_id: int, restaurant_name: str, order_id: int):
     """
     Notify user that their order is ready.
@@ -51,6 +84,76 @@ async def notify_order_ready(user_tg_id: int, restaurant_name: str, order_id: in
         f"Заберите ваш заказ. Приятного аппетита! 😋"
     )
     await send_message(user_tg_id, text)
+
+
+async def notify_customer_new_order(order_id: int, db_session):
+    """
+    Send order confirmation + payment QR to the customer via Telegram.
+    Called right after order creation if user has tg_id.
+    """
+    from app.models import Order, User, Restaurant
+
+    order = db_session.query(Order).filter(Order.id == order_id).first()
+    if not order or not order.user_id:
+        return
+
+    user = db_session.query(User).filter(User.id == order.user_id).first()
+    if not user or not user.tg_id:
+        return
+
+    restaurant = db_session.query(Restaurant).filter(Restaurant.id == order.restaurant_id).first()
+    rest_name = restaurant.name if restaurant else "Ресторан"
+
+    # Build items list
+    items = []
+    try:
+        items = json.loads(order.items_json) if order.items_json else []
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    items_text = ""
+    for item in items:
+        name = item.get("name", "?")
+        qty = item.get("quantity", 1)
+        subtotal = item.get("subtotal", item.get("price", 0) * qty)
+        items_text += f"  • {name} × {qty} — {subtotal / 100:,.0f} сом\n"
+
+    order_type = "🥡 С собой" if (order.type.value if hasattr(order.type, 'value') else order.type) == "takeout" else "🍽 В зале"
+    total = order.total_amount / 100
+
+    # Arrival time
+    arrival_text = ""
+    if order.arrival_time:
+        try:
+            from datetime import timezone, timedelta, datetime
+            bishkek_tz = timezone(timedelta(hours=6))
+            if isinstance(order.arrival_time, datetime):
+                local_time = order.arrival_time.astimezone(bishkek_tz)
+                arrival_text = f"\n⏰ Время прибытия: {local_time.strftime('%H:%M')}"
+        except Exception:
+            pass
+
+    # Confirmation message
+    text = (
+        f"🎉 <b>Заказ #{order_id} оформлен!</b>\n\n"
+        f"🏪 {rest_name}\n"
+        f"📦 {order_type}{arrival_text}\n\n"
+        f"📝 Состав:\n{items_text}\n"
+        f"💰 <b>Итого: {total:,.0f} сом</b>\n\n"
+        f"Для оплаты по QR: /pay {order_id}\n"
+        f"Для редактирования: /editorder {order_id}"
+    )
+
+    reply_markup = {
+        "inline_keyboard": [
+            [
+                {"text": "💳 Оплатить по QR", "callback_data": f"payqr:{order_id}"},
+                {"text": "✏️ Изменить", "callback_data": f"editstart:{order_id}"},
+            ]
+        ]
+    }
+
+    await send_message(user.tg_id, text, reply_markup)
 
 
 async def notify_restaurant_about_order(order_id: int, db_session):

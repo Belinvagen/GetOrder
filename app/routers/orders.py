@@ -13,7 +13,7 @@ from app.dependencies import get_db, get_current_admin, require_restaurant_owner
 from app.models import Order, Restaurant, User, Admin
 from app.schemas.order import OrderCreate, OrderResponse, OrderStatusUpdate
 from app.services.order_service import create_order
-from app.services.notification_service import notify_restaurant_about_order, notify_order_ready
+from app.services.notification_service import notify_restaurant_about_order, notify_order_ready, notify_customer_new_order
 
 router = APIRouter(prefix="/api/orders", tags=["Orders"])
 
@@ -37,6 +37,9 @@ async def place_order(
 
     # Send restaurant notification in background
     background_tasks.add_task(notify_restaurant_about_order, order.id, db)
+
+    # Send customer confirmation in background (if they have TG)
+    background_tasks.add_task(notify_customer_new_order, order.id, db)
 
     return response
 
