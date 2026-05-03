@@ -48,7 +48,7 @@ def seed():
             print("[+] Test user created: tg_id=123456789")
 
         # ── Restaurant 1 (manual mode) + Admin ────────────────
-        r1 = db.query(Restaurant).filter(Restaurant.name == "Burger Palace").first()
+        r1 = db.query(Restaurant).filter(Restaurant.id == 1).first()
         if not r1:
             r1 = Restaurant(
                 name="Burger Palace",
