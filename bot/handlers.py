@@ -16,7 +16,7 @@ from aiogram.types import (
 )
 
 from app.database import SessionLocal
-from app.models import Restaurant, User, Order, OrderStatus
+from app.models import Restaurant, User, Order, OrderStatus, MenuItem
 
 router = Router()
 
@@ -29,7 +29,7 @@ BISHKEK_TZ = timezone(timedelta(hours=6))
 
 FAQ_RULES = [
     {
-        "keywords": ["рекоменд", "посоветуй", "что попробовать", "что вкусн", "лучшее", "хит", "популярн", "топ"],
+        "keywords": ["рекоменд", "посовету", "что попробовать", "что вкусн", "лучшее", "хит", "популярн", "топ"],
         "answer": (
             "⭐ <b>Рекомендации от шеф-повара</b>\n\n"
             "🥇 <b>Стейк Рибай</b> — мраморная говядина Medium Rare (3 200 сом)\n"
@@ -385,15 +385,16 @@ async def handle_contact(message: Message):
                      points=WELCOME_POINTS, discount=WELCOME_DISCOUNT)
         db.add(user)
         db.commit()
+
         await message.answer(
             f"🎉 <b>Регистрация завершена!</b>\n\n"
             f"👤 {tg_name}\n📞 {phone}\n"
-            f"💰 {WELCOME_POINTS} баллов | 🏷 {WELCOME_DISCOUNT:.0f}%\n\n"
-            f"🍽 <a href='{WEBAPP_URL}'>Заказать еду</a>\n"
-            f"Или напишите любой вопрос — я помогу! 💬",
+            f"💰 {WELCOME_POINTS} баллов | 🏷 {WELCOME_DISCOUNT:.0f}%",
             parse_mode="HTML", reply_markup=ReplyKeyboardRemove(),
-            disable_web_page_preview=True,
         )
+
+        # Auto-link orders by phone
+        await _auto_link_orders(db, user, phone, message)
     except Exception as e:
         db.rollback()
         await message.answer(f"⚠️ Ошибка: {e}", reply_markup=ReplyKeyboardRemove())
@@ -730,18 +731,233 @@ async def cmd_chatid(message: Message):
     )
 
 
+# ─── Auto-link helper ────────────────────────────────────────────────────────
+
+async def _auto_link_orders(db, user, phone, message):
+    """Find orders by phone and link them to the user. Show latest order."""
+    if not phone:
+        return
+    # Normalize phone: strip spaces, ensure +
+    phone_clean = phone.strip().replace(" ", "").replace("-", "")
+    unlinked = db.query(Order).filter(
+        Order.customer_phone == phone_clean,
+        Order.user_id == None,
+    ).all()
+    # Also try without + prefix
+    if not unlinked and phone_clean.startswith("+"):
+        unlinked = db.query(Order).filter(
+            Order.customer_phone == phone_clean[1:],
+            Order.user_id == None,
+        ).all()
+    if not unlinked:
+        # Try partial match
+        unlinked = db.query(Order).filter(
+            Order.customer_phone.contains(phone_clean[-9:]),
+            Order.user_id == None,
+        ).all()
+
+    if not unlinked:
+        return
+
+    for o in unlinked:
+        o.user_id = user.id
+    db.commit()
+
+    latest = max(unlinked, key=lambda o: o.id)
+    items = json.loads(latest.items_json) if latest.items_json else []
+    items_text = ""
+    for item in items:
+        name = item.get("name", "?")
+        qty = item.get("quantity", 1)
+        items_text += f"  • {name} × {qty}\n"
+
+    total = latest.total_amount / 100
+    count = len(unlinked)
+    word = "заказ" if count == 1 else "заказа" if count < 5 else "заказов"
+
+    await message.answer(
+        f"📦 <b>Нашёл {count} {word}!</b>\n\n"
+        f"Последний — <b>заказ #{latest.id}</b>:\n"
+        f"{items_text}"
+        f"💰 <b>Итого: {total:,.0f} сом</b>\n\n"
+        f"• /pay {latest.id} — оплатить\n"
+        f"• /editorder {latest.id} — изменить\n"
+        f"• Или напишите: «добавь маргариту» / «убери капучино» 💬",
+        parse_mode="HTML",
+    )
+
+
+# ─── Natural language order editing ──────────────────────────────────────────
+
+async def _handle_nl_edit(message: Message, text_lower: str) -> bool:
+    """Handle 'добавь маргариту' / 'убери колу' style messages."""
+    tg_id = message.from_user.id
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.tg_id == tg_id).first()
+        if not user:
+            return False
+
+        order = (
+            db.query(Order)
+            .filter(Order.user_id == user.id,
+                    Order.status.in_([OrderStatus.pending, OrderStatus.cooking]))
+            .order_by(Order.created_at.desc())
+            .first()
+        )
+        if not order:
+            await message.answer("У вас нет активных заказов для изменения.")
+            return True
+
+        is_add = any(kw in text_lower for kw in ["добавь", "добавить", "хочу ещё", "хочу еще", "ещё ", "еще "])
+        is_remove = any(kw in text_lower for kw in ["убери", "удали", "убрать", "удалить", "без "])
+        if not is_add and not is_remove:
+            return False
+
+        # Find matching menu item from DB
+        menu_items = db.query(MenuItem).filter(MenuItem.is_active == True).all()
+        matched = None
+        best_score = 0
+        for mi in menu_items:
+            name_lower = mi.name.lower()
+            # Check each significant word from menu item name
+            words = [w for w in name_lower.split() if len(w) >= 4]
+            for w in words:
+                stem = w[:len(w)-1] if len(w) > 4 else w  # rough stem
+                if stem in text_lower and len(stem) > best_score:
+                    matched = mi
+                    best_score = len(stem)
+
+        if not matched:
+            await message.answer(
+                "🤔 Не нашёл такое блюдо. Попробуйте точнее.\n"
+                "Например: «добавь маргариту» или «убери капучино»"
+            )
+            return True
+
+        items = json.loads(order.items_json) if order.items_json else []
+
+        if is_add:
+            items.append({
+                "menu_item_id": matched.id,
+                "name": matched.name,
+                "quantity": 1,
+                "price": matched.price,
+                "subtotal": matched.price,
+            })
+            order.items_json = json.dumps(items, ensure_ascii=False)
+            order.total_amount = sum(it.get("subtotal", 0) for it in items)
+            db.commit()
+            await message.answer(
+                f"✅ <b>{matched.name}</b> добавлен в заказ #{order.id}!\n\n"
+                f"💰 Новая сумма: <b>{order.total_amount / 100:,.0f} сом</b>",
+                parse_mode="HTML",
+            )
+            return True
+
+        if is_remove:
+            found_idx = None
+            for i, it in enumerate(items):
+                it_name = it.get("name", "").lower()
+                if matched.name.lower() in it_name or it_name in matched.name.lower():
+                    found_idx = i
+                    break
+            if found_idx is None:
+                await message.answer(f"❌ «{matched.name}» нет в вашем заказе #{order.id}.")
+                return True
+            removed = items.pop(found_idx)
+            order.items_json = json.dumps(items, ensure_ascii=False)
+            order.total_amount = sum(it.get("subtotal", 0) for it in items)
+            db.commit()
+            await message.answer(
+                f"✅ <b>{removed.get('name')}</b> убран из заказа #{order.id}!\n\n"
+                f"💰 Новая сумма: <b>{order.total_amount / 100:,.0f} сом</b>",
+                parse_mode="HTML",
+            )
+            return True
+    except Exception as e:
+        await message.answer(f"⚠️ Ошибка: {e}")
+        return True
+    finally:
+        db.close()
+    return False
+
+
+# ─── Dynamic menu item query ─────────────────────────────────────────────────
+
+async def _handle_menu_query(message: Message, text_lower: str) -> bool:
+    """Handle queries asking for details about a specific menu item."""
+    db = SessionLocal()
+    try:
+        menu_items = db.query(MenuItem).filter(MenuItem.is_active == True).all()
+        matched = None
+        best_score = 0
+        for mi in menu_items:
+            name_lower = mi.name.lower()
+            words = [w for w in name_lower.split() if len(w) >= 4]
+            for w in words:
+                stem = w[:len(w)-1] if len(w) > 4 else w
+                if stem in text_lower and len(stem) > best_score:
+                    matched = mi
+                    best_score = len(stem)
+
+        if not matched:
+            return False
+
+        price = matched.price / 100
+        text = (
+            f"🍽 <b>{matched.name}</b>\n\n"
+            f"{matched.description or 'Вкуснейшее блюдо от нашего шеф-повара!'}\n\n"
+            f"💰 Цена: <b>{price:,.0f} сом</b>\n\n"
+            f"Чтобы добавить в заказ, напишите: «добавь {matched.name.lower()}»"
+        )
+
+        if matched.image_url:
+            import os
+            from aiogram.types import FSInputFile
+            rel_path = matched.image_url.lstrip("/")
+            full_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "frontend", "public", rel_path
+            )
+            if os.path.exists(full_path):
+                photo = FSInputFile(full_path)
+                await message.answer_photo(photo=photo, caption=text, parse_mode="HTML")
+                return True
+
+        await message.answer(text, parse_mode="HTML")
+        return True
+    except Exception as e:
+        print(f"Menu query error: {e}")
+        return False
+    finally:
+        db.close()
+
+
 # ─── FAQ catch-all (must be last!) ───────────────────────────────────────────
 
 @router.message(F.text)
 async def faq_catchall(message: Message):
-    """Smart FAQ — match keywords in user's message."""
+    """Smart FAQ + NL order editing."""
     text_lower = message.text.lower()
 
+    # Try natural language order editing first
+    if any(kw in text_lower for kw in ["добавь", "добавить", "убери", "удали", "убрать", "удалить"]):
+        handled = await _handle_nl_edit(message, text_lower)
+        if handled:
+            return
+
+    # FAQ keyword matching
     for rule in FAQ_RULES:
         for kw in rule["keywords"]:
             if kw in text_lower:
                 await message.answer(rule["answer"], parse_mode="HTML",
                                      disable_web_page_preview=True)
                 return
+
+    # Dynamic menu item description
+    handled = await _handle_menu_query(message, text_lower)
+    if handled:
+        return
 
     await message.answer(DEFAULT_ANSWER, parse_mode="HTML")

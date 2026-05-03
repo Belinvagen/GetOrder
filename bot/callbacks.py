@@ -239,18 +239,24 @@ async def confirm_payment(callback: CallbackQuery):
             await callback.answer("Заказ не найден", show_alert=True)
             return
 
+        # Update status to cooking (принято)
+        order.status = OrderStatus.cooking
+        db.commit()
+
         total_som = order.total_amount / 100
 
         await callback.message.edit_caption(
             caption=(
                 f"✅ <b>Оплата заказа #{order_id} подтверждена!</b>\n\n"
-                f"💰 Сумма: <b>{total_som:,.0f} сом</b>\n\n"
-                f"Спасибо! Мы уведомим вас, когда заказ будет готов. 🍽"
+                f"💰 Сумма: <b>{total_som:,.0f} сом</b>\n"
+                f"📋 Статус: <b>Принят в работу</b> 🍳\n\n"
+                f"Мы уведомим вас, когда заказ будет готов! 🍽"
             ),
             parse_mode="HTML",
         )
         await callback.answer("Оплата подтверждена! ✅", show_alert=True)
     except Exception as e:
+        db.rollback()
         await callback.answer(f"Ошибка: {e}", show_alert=True)
     finally:
         db.close()
