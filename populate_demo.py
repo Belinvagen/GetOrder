@@ -18,21 +18,30 @@ def main():
 
         print(f"Preparing demonstration data for restaurant: {restaurant.name} (ID: {restaurant.id})")
 
-        # 1. Update restaurant details and images
+        # 1. Update restaurant details and images (always, in case they got overwritten)
+        old_chat_id = restaurant.telegram_chat_id  # Preserve TG binding!
         restaurant.name = "Fusion"
         restaurant.description = "Авторская кухня премиум-класса. Лучшие стейки, итальянская пицца и фирменные десерты."
         restaurant.logo_url = "/img/logo_fusion_1777160555339.png"
         restaurant.cover_url = "/img/cover_fusion_1777160568634.png"
-        
-        # 2. Delete all orders
+        if old_chat_id:
+            restaurant.telegram_chat_id = old_chat_id
+        db.commit()
+
+        # 2. Skip menu rebuild if already populated (check if Fusion categories exist)
+        existing_cats = db.query(Category).filter(Category.restaurant_id == restaurant.id).count()
+        if existing_cats >= 5:
+            print(f"Menu already has {existing_cats} categories — skipping rebuild.")
+            print("Database ready!")
+            return
+
+        # 3. Full rebuild: delete old data
         deleted_orders = db.query(Order).delete()
         print(f"Deleted {deleted_orders} old orders.")
 
-        # 3. Delete old categories and menu items (cascade should handle items)
-        deleted_categories = db.query(Category).delete()
+        deleted_categories = db.query(Category).filter(Category.restaurant_id == restaurant.id).delete()
         print(f"Deleted {deleted_categories} old categories.")
         
-        # Explicitly delete menu items just in case
         db.query(MenuItem).delete()
 
         # 4. Create new categories
