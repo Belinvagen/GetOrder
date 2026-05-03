@@ -170,9 +170,13 @@ def reset_password(
 def reset_telegram_pairing(
     restaurant_id: int,
     db: Session = Depends(get_db),
-    admin: Admin = Depends(require_superadmin),
+    admin: Admin = Depends(get_current_admin),
 ):
-    """Clear telegram_chat_id for a restaurant so it can be re-paired."""
+    """Clear telegram_chat_id for a restaurant so it can be re-paired.
+    Accessible by superadmin or the restaurant's own admin."""
+    if not admin.is_superadmin and admin.restaurant_id != restaurant_id:
+        raise HTTPException(status_code=403, detail="Нет доступа к этому ресторану")
+
     restaurant = db.query(Restaurant).filter(Restaurant.id == restaurant_id).first()
     if not restaurant:
         raise HTTPException(status_code=404, detail="Ресторан не найден")

@@ -260,22 +260,116 @@ async def confirm_payment(callback: CallbackQuery):
 
 @router.callback_query(lambda c: c.data and c.data.startswith("payqr:"))
 async def inline_pay_qr(callback: CallbackQuery):
-    """When customer clicks 'Pay QR' button in order confirmation message."""
+    """Send QR payment photo directly when button is pressed."""
     order_id = int(callback.data.split(":")[1])
-    await callback.answer(
-        f"Используйте команду: /pay {order_id}",
-        show_alert=True,
-    )
+    await callback.answer()
+
+    db = SessionLocal()
+    try:
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if not order:
+            await callback.message.answer("❌ Заказ не найден.")
+            return
+
+        total_som = order.total_amount / 100
+
+        import os
+        from aiogram.types import FSInputFile
+        qr_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "payment_qr.png")
+
+        caption = (
+            f"💳 <b>Оплата заказа #{order_id}</b>\n\n"
+            f"💰 Сумма: <b>{total_som:,.0f} сом</b>\n\n"
+            f"📱 Отсканируйте QR-код в приложении MBank\n"
+            f"и переведите указанную сумму.\n\n"
+            f"После оплаты нажмите кнопку ниже 👇"
+        )
+
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Я оплатил", callback_data=f"paid:{order_id}")],
+        ])
+
+        photo = FSInputFile(qr_path)
+        await callback.message.answer_photo(
+            photo=photo, caption=caption,
+            parse_mode="HTML", reply_markup=keyboard,
+        )
+    except Exception as e:
+        await callback.message.answer(f"⚠️ Ошибка: {e}")
+    finally:
+        db.close()
 
 
 # ─── Customer: Inline button "Edit" from order notification ──────────────────
 
 @router.callback_query(lambda c: c.data and c.data.startswith("editstart:"))
 async def inline_edit_start(callback: CallbackQuery):
-    """When customer clicks 'Edit' button in order confirmation message."""
+    """Show edit menu directly when button is pressed."""
     order_id = int(callback.data.split(":")[1])
-    await callback.answer(
-        f"Используйте команду: /editorder {order_id}",
-        show_alert=True,
-    )
+    await callback.answer()
+
+    db = SessionLocal()
+    try:
+        # Find user
+        tg_id = callback.from_user.id
+        user = db.query(User).filter(User.tg_id == tg_id).first()
+        if not user:
+            await callback.message.answer("Вы не зарегистрированы. Нажмите /start")
+            return
+
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if not order:
+            await callback.message.answer(f"❌ Заказ #{order_id} не найден.")
+            return
+        if order.user_id != user.id:
+            await callback.message.answer("❌ Это не ваш заказ.")
+            return
+
+        st = order.status.value if hasattr(order.status, 'value') else order.status
+        if st not in ("pending", "cooking"):
+            await callback.message.answer(f"❌ Заказ #{order_id} уже завершён.")
+            return
+
+        # Check 30-min window
+        if order.arrival_time:
+            from datetime import datetime, timezone
+            now = datetime.now(timezone.utc)
+            arrival = order.arrival_time
+            if arrival.tzinfo is None:
+                arrival = arrival.replace(tzinfo=timezone.utc)
+            diff = (arrival - now).total_seconds()
+            if diff < 30 * 60:
+                mins_left = max(0, int(diff // 60))
+                await callback.message.answer(
+                    f"⏳ Изменить заказ нельзя — до прибытия {mins_left} мин (нужно ≥ 30)."
+                )
+                return
+
+        # Show edit menu
+        items = json.loads(order.items_json) if order.items_json else []
+        text = f"✏️ <b>Редактирование заказа #{order_id}</b>\n\n"
+        buttons = []
+        for i, item in enumerate(items):
+            name = item.get("name", "?")
+            qty = item.get("quantity", 1)
+            price = item.get("subtotal", item.get("price", 0) * qty)
+            text += f"{i+1}. {name} × {qty} — {_format_price(price)}\n"
+            buttons.append([
+                InlineKeyboardButton(text=f"❌ {name}", callback_data=f"edrm:{order_id}:{i}")
+            ])
+
+        text += f"\n💰 <b>Итого: {_format_price(order.total_amount)}</b>"
+        buttons.append([
+            InlineKeyboardButton(text="⏰ Время прибытия", callback_data=f"edtime:{order_id}"),
+            InlineKeyboardButton(text="✖️ Закрыть", callback_data=f"edclose:{order_id}"),
+        ])
+
+        await callback.message.answer(
+            text, parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
+        )
+    except Exception as e:
+        await callback.message.answer(f"⚠️ Ошибка: {e}")
+    finally:
+        db.close()
 
