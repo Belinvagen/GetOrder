@@ -339,6 +339,14 @@ async def _handle_registration(message: Message):
             )
             if user.phone:
                 await _auto_link_orders(db, user, user.phone, message)
+            
+            # Show active order if any
+            active_order = db.query(Order).filter(
+                Order.user_id == user.id,
+                Order.status.in_([OrderStatus.pending, OrderStatus.cooking, OrderStatus.ready])
+            ).order_by(Order.created_at.desc()).first()
+            if active_order:
+                await cmd_myorders(message)
         else:
             phone_keyboard = ReplyKeyboardMarkup(
                 keyboard=[
@@ -504,13 +512,22 @@ async def cmd_myorders(message: Message):
         for o in orders:
             st = o.status.value if hasattr(o.status, 'value') else o.status
             emoji = status_emoji.get(st, st)
-            text += (
-                f"<b>#{o.id}</b> — {emoji}\n"
-                f"   💰 {_format_price(o.total_amount)}\n\n"
-            )
+            text += f"<b>#{o.id}</b> — {emoji}\n"
+            
+            # Show items
+            items = json.loads(o.items_json) if o.items_json else []
+            for item in items:
+                name = item.get("name", "?")
+                qty = item.get("quantity", 1)
+                text += f"  • {name} × {qty}\n"
+                
+            text += f"   💰 {_format_price(o.total_amount)}\n\n"
 
         text += "Для редактирования: /editorder <номер>\nДля оплаты: /pay <номер>"
         await message.answer(text, parse_mode="HTML")
+    except Exception as e:
+        print(f"Error in cmd_myorders: {e}")
+        await message.answer(f"⚠️ Ошибка при загрузке заказов: {e}")
     finally:
         db.close()
 
