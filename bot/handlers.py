@@ -739,24 +739,21 @@ async def _auto_link_orders(db, user, phone, message):
     """Find orders by phone and link them to the user. Show latest order."""
     if not phone:
         return
-    # Normalize phone: strip spaces, ensure +
-    phone_clean = phone.strip().replace(" ", "").replace("-", "")
-    unlinked = db.query(Order).filter(
-        Order.customer_phone == phone_clean,
-        Order.user_id == None,
-    ).all()
-    # Also try without + prefix
-    if not unlinked and phone_clean.startswith("+"):
-        unlinked = db.query(Order).filter(
-            Order.customer_phone == phone_clean[1:],
-            Order.user_id == None,
-        ).all()
-    if not unlinked:
-        # Try partial match
-        unlinked = db.query(Order).filter(
-            Order.customer_phone.contains(phone_clean[-9:]),
-            Order.user_id == None,
-        ).all()
+    # Normalize phone: strip spaces, ensure only digits
+    phone_digits = ''.join(filter(str.isdigit, phone))
+    if len(phone_digits) < 9:
+        return
+        
+    all_unlinked = db.query(Order).filter(Order.user_id == None).all()
+    unlinked = []
+    
+    for o in all_unlinked:
+        if not o.customer_phone:
+            continue
+        order_phone_digits = ''.join(filter(str.isdigit, o.customer_phone))
+        # Match by last 9 digits to be safe (ignores country code differences like 0555 vs 996555)
+        if phone_digits[-9:] == order_phone_digits[-9:]:
+            unlinked.append(o)
 
     if not unlinked:
         return
