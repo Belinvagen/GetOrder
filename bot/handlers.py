@@ -739,51 +739,56 @@ async def _auto_link_orders(db, user, phone, message):
     """Find orders by phone and link them to the user. Show latest order."""
     if not phone:
         return
-    # Normalize phone: strip spaces, ensure only digits
-    phone_digits = ''.join(filter(str.isdigit, phone))
-    if len(phone_digits) < 9:
-        return
+    try:
+        # Normalize phone: strip spaces, ensure only digits
+        phone_digits = ''.join(filter(str.isdigit, phone))
+        if len(phone_digits) < 9:
+            return
+            
+        all_unlinked = db.query(Order).filter(Order.user_id.is_(None)).all()
+        unlinked = []
         
-    all_unlinked = db.query(Order).filter(Order.user_id == None).all()
-    unlinked = []
-    
-    for o in all_unlinked:
-        if not o.customer_phone:
-            continue
-        order_phone_digits = ''.join(filter(str.isdigit, o.customer_phone))
-        # Match by last 9 digits to be safe (ignores country code differences like 0555 vs 996555)
-        if phone_digits[-9:] == order_phone_digits[-9:]:
-            unlinked.append(o)
+        for o in all_unlinked:
+            if not o.customer_phone:
+                continue
+            order_phone_digits = ''.join(filter(str.isdigit, o.customer_phone))
+            if len(order_phone_digits) >= 9 and phone_digits[-9:] == order_phone_digits[-9:]:
+                unlinked.append(o)
 
-    if not unlinked:
-        return
+        if not unlinked:
+            # Uncomment for debug:
+            # await message.answer(f"Не найдено заказов для номера {phone_digits[-9:]}")
+            return
 
-    for o in unlinked:
-        o.user_id = user.id
-    db.commit()
+        for o in unlinked:
+            o.user_id = user.id
+        db.commit()
 
-    latest = max(unlinked, key=lambda o: o.id)
-    items = json.loads(latest.items_json) if latest.items_json else []
-    items_text = ""
-    for item in items:
-        name = item.get("name", "?")
-        qty = item.get("quantity", 1)
-        items_text += f"  • {name} × {qty}\n"
+        latest = max(unlinked, key=lambda o: o.id)
+        items = json.loads(latest.items_json) if latest.items_json else []
+        items_text = ""
+        for item in items:
+            name = item.get("name", "?")
+            qty = item.get("quantity", 1)
+            items_text += f"  • {name} × {qty}\n"
 
-    total = latest.total_amount / 100
-    count = len(unlinked)
-    word = "заказ" if count == 1 else "заказа" if count < 5 else "заказов"
+        total = latest.total_amount / 100
+        count = len(unlinked)
+        word = "заказ" if count == 1 else "заказа" if count < 5 else "заказов"
 
-    await message.answer(
-        f"📦 <b>Нашёл {count} {word}!</b>\n\n"
-        f"Последний — <b>заказ #{latest.id}</b>:\n"
-        f"{items_text}"
-        f"💰 <b>Итого: {total:,.0f} сом</b>\n\n"
-        f"• /pay {latest.id} — оплатить\n"
-        f"• /editorder {latest.id} — изменить\n"
-        f"• Или напишите: «добавь маргариту» / «убери капучино» 💬",
-        parse_mode="HTML",
-    )
+        await message.answer(
+            f"📦 <b>Нашёл {count} {word}!</b>\n\n"
+            f"Последний — <b>заказ #{latest.id}</b>:\n"
+            f"{items_text}"
+            f"💰 <b>Итого: {total:,.0f} сом</b>\n\n"
+            f"• /pay {latest.id} — оплатить\n"
+            f"• /editorder {latest.id} — изменить\n"
+            f"• Или напишите: «добавь маргариту» / «убери капучино» 💬",
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        print(f"Auto link error: {e}")
+        await message.answer(f"⚠️ Ошибка при поиске заказов: {e}")
 
 
 # ─── Natural language order editing ──────────────────────────────────────────
