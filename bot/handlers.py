@@ -205,7 +205,7 @@ FAQ_RULES = [
             "📋 <b>Отслеживание заказа</b>\n\n"
             "Я пришлю уведомление, когда заказ будет готов! ✅\n"
             "Проверить статус: /myorders\n\n"
-            "Для редактирования: /editorder <номер>"
+            "Для редактирования: /editorder [номер]"
         ),
     },
     {
@@ -213,7 +213,7 @@ FAQ_RULES = [
         "answer": (
             "❌ <b>Отмена заказа</b>\n\n"
             "Если до времени прибытия больше 30 минут,\n"
-            "вы можете изменить заказ: /editorder <номер>\n\n"
+            "вы можете изменить заказ: /editorder [номер]\n\n"
             "Для полной отмены свяжитесь с рестораном."
         ),
     },
@@ -456,12 +456,12 @@ async def cmd_help(message: Message):
         f"1. Откройте <a href='{WEBAPP_URL}'>меню</a>\n"
         "2. Добавьте блюда в корзину\n"
         "3. Оформите заказ\n"
-        "4. Оплатите по QR: /pay <номер>\n\n"
+        "4. Оплатите по QR: /pay [номер]\n\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
         "📱 <b>Команды:</b>\n"
         "• /myorders — мои заказы\n"
-        "• /editorder <номер> — изменить заказ\n"
-        "• /pay <номер> — оплатить по QR\n"
+        "• /editorder [номер] — изменить заказ\n"
+        "• /pay [номер] — оплатить по QR\n"
         "• /bonus — мои бонусы\n"
         "• /chatid — ID чата\n\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -523,7 +523,7 @@ async def cmd_myorders(message: Message):
                 
             text += f"   💰 {_format_price(o.total_amount)}\n\n"
 
-        text += "Для редактирования: /editorder <номер>\nДля оплаты: /pay <номер>"
+        text += "Для редактирования: /editorder [номер]\nДля оплаты: /pay [номер]"
         await message.answer(text, parse_mode="HTML")
     except Exception as e:
         print(f"Error in cmd_myorders: {e}")
