@@ -337,6 +337,8 @@ async def _handle_registration(message: Message):
                 parse_mode="HTML",
                 disable_web_page_preview=True,
             )
+            if user.phone:
+                await _auto_link_orders(db, user, user.phone, message)
         else:
             phone_keyboard = ReplyKeyboardMarkup(
                 keyboard=[
@@ -945,6 +947,10 @@ async def _handle_menu_query(message: Message, text_lower: str) -> bool:
 async def faq_catchall(message: Message):
     """Smart FAQ + NL order editing."""
     text_lower = message.text.lower()
+
+    if any(kw in text_lower for kw in ["мой заказ", "мои заказы", "статус заказа", "покажи заказ", "где мой заказ"]):
+        await cmd_myorders(message)
+        return
 
     # Try natural language order editing first
     if any(kw in text_lower for kw in ["добавь", "добавить", "убери", "удали", "убрать", "удалить"]):
